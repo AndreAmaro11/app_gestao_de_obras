@@ -244,8 +244,10 @@ export type Database = {
           cnpj: string | null
           deleted_at: string | null
           email: string | null
+          etapa_id: string | null
           id: string
           nome: string
+          subetapa_id: string | null
           tags: string[] | null
           telefone: string | null
           tipo: Database["public"]["Enums"]["tipo_fornecedor"]
@@ -255,8 +257,10 @@ export type Database = {
           cnpj?: string | null
           deleted_at?: string | null
           email?: string | null
+          etapa_id?: string | null
           id?: string
           nome: string
+          subetapa_id?: string | null
           tags?: string[] | null
           telefone?: string | null
           tipo?: Database["public"]["Enums"]["tipo_fornecedor"]
@@ -266,14 +270,31 @@ export type Database = {
           cnpj?: string | null
           deleted_at?: string | null
           email?: string | null
+          etapa_id?: string | null
           id?: string
           nome?: string
+          subetapa_id?: string | null
           tags?: string[] | null
           telefone?: string | null
           tipo?: Database["public"]["Enums"]["tipo_fornecedor"]
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fornecedores_etapa_id_fkey"
+            columns: ["etapa_id"]
+            isOneToOne: false
+            referencedRelation: "etapas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fornecedores_subetapa_id_fkey"
+            columns: ["subetapa_id"]
+            isOneToOne: false
+            referencedRelation: "subetapas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       obras: {
         Row: {
