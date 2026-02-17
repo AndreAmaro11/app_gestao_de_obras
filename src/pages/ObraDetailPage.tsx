@@ -8,13 +8,17 @@ import OrcamentoTab from "@/components/obras/OrcamentoTab";
 import DespesasTab from "@/components/obras/DespesasTab";
 import FinanceiroTab from "@/components/obras/FinanceiroTab";
 import ChecklistTab from "@/components/obras/ChecklistTab";
+import { useObra } from "@/hooks/useObras";
+
+const padraoLabel: Record<string, string> = { baixo: "Baixo", medio: "Médio", alto: "Alto" };
 
 const ObraDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { data: obra, isLoading } = useObra(id);
 
-  // Mock - will be replaced with Supabase query
-  const obra = { id, nome: "Casa Residencial Silva", metragem: 180, padrao: "Médio", data_inicio: "2024-03-01", data_previsao_fim: "2024-12-15" };
+  if (isLoading) return <AppLayout><div className="text-center text-muted-foreground py-12">Carregando...</div></AppLayout>;
+  if (!obra) return <AppLayout><div className="text-center text-muted-foreground py-12">Obra não encontrada</div></AppLayout>;
 
   return (
     <AppLayout>
@@ -24,7 +28,11 @@ const ObraDetailPage = () => {
         </Button>
         <div>
           <h1 className="text-2xl font-bold text-foreground">{obra.nome}</h1>
-          <p className="text-sm text-muted-foreground">{obra.metragem} m² · {obra.padrao} · {new Date(obra.data_inicio).toLocaleDateString("pt-BR")} → {new Date(obra.data_previsao_fim).toLocaleDateString("pt-BR")}</p>
+          <p className="text-sm text-muted-foreground">
+            {obra.metragem ? `${obra.metragem} m²` : ""} · {padraoLabel[obra.padrao] || obra.padrao}
+            {obra.data_inicio && ` · ${new Date(obra.data_inicio).toLocaleDateString("pt-BR")}`}
+            {obra.data_previsao_fim && ` → ${new Date(obra.data_previsao_fim).toLocaleDateString("pt-BR")}`}
+          </p>
         </div>
       </div>
 
@@ -36,11 +44,11 @@ const ObraDetailPage = () => {
           <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
           <TabsTrigger value="checklist">Checklist</TabsTrigger>
         </TabsList>
-        <TabsContent value="cronograma"><CronogramaTab /></TabsContent>
-        <TabsContent value="orcamento"><OrcamentoTab /></TabsContent>
-        <TabsContent value="despesas"><DespesasTab /></TabsContent>
-        <TabsContent value="financeiro"><FinanceiroTab /></TabsContent>
-        <TabsContent value="checklist"><ChecklistTab /></TabsContent>
+        <TabsContent value="cronograma"><CronogramaTab obraId={obra.id} /></TabsContent>
+        <TabsContent value="orcamento"><OrcamentoTab obraId={obra.id} /></TabsContent>
+        <TabsContent value="despesas"><DespesasTab obraId={obra.id} /></TabsContent>
+        <TabsContent value="financeiro"><FinanceiroTab obraId={obra.id} /></TabsContent>
+        <TabsContent value="checklist"><ChecklistTab obraId={obra.id} /></TabsContent>
       </Tabs>
     </AppLayout>
   );

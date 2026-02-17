@@ -1,19 +1,45 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
-
-const mockFinanceiro = [
-  { etapa: "Fundação", previsto: 43300, realizado: 43925, percentual: 100 },
-  { etapa: "Estrutura", previsto: 42200, realizado: 0, percentual: 0 },
-  { etapa: "Alvenaria", previsto: 35000, realizado: 0, percentual: 0 },
-  { etapa: "Instalações Elétricas", previsto: 28000, realizado: 0, percentual: 0 },
-  { etapa: "Instalações Hidráulicas", previsto: 22000, realizado: 0, percentual: 0 },
-  { etapa: "Acabamento", previsto: 95000, realizado: 0, percentual: 0 },
-];
+import { useDespesas } from "@/hooks/useDespesas";
+import { useEtapas } from "@/hooks/useEtapas";
 
 const fmt = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
 
-const FinanceiroTab = () => {
-  const totalPrevisto = mockFinanceiro.reduce((s, r) => s + r.previsto, 0);
-  const totalRealizado = mockFinanceiro.reduce((s, r) => s + r.realizado, 0);
+interface Props { obraId: string; }
+
+const FinanceiroTab = ({ obraId }: Props) => {
+  const { data: despesas, isLoading: loadingDespesas } = useDespesas(obraId);
+  const { data: etapas, isLoading: loadingEtapas } = useEtapas(obraId);
+
+  if (loadingDespesas || loadingEtapas) return <div className="text-center text-muted-foreground py-8">Carregando...</div>;
+
+  // Group despesas by etapa
+  const byEtapa = new Map<string, { nome: string; previsto: number; realizado: number }>();
+  
+  etapas?.forEach(et => {
+    byEtapa.set(et.id, { nome: et.nome, previsto: 0, realizado: 0 });
+  });
+
+  // "Sem etapa" bucket
+  let semEtapaPrev = 0, semEtapaReal = 0;
+
+  despesas?.forEach(d => {
+    if (d.etapa_id && byEtapa.has(d.etapa_id)) {
+      const entry = byEtapa.get(d.etapa_id)!;
+      entry.previsto += d.valor_previsto;
+      entry.realizado += d.valor_real;
+    } else {
+      semEtapaPrev += d.valor_previsto;
+      semEtapaReal += d.valor_real;
+    }
+  });
+
+  const rows = Array.from(byEtapa.values());
+  if (semEtapaPrev > 0 || semEtapaReal > 0) {
+    rows.push({ nome: "Sem etapa", previsto: semEtapaPrev, realizado: semEtapaReal });
+  }
+
+  const totalPrevisto = rows.reduce((s, r) => s + r.previsto, 0);
+  const totalRealizado = rows.reduce((s, r) => s + r.realizado, 0);
   const saldo = totalPrevisto - totalRealizado;
 
   return (
@@ -47,34 +73,39 @@ const FinanceiroTab = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {mockFinanceiro.map((row) => {
-              const diff = row.previsto - row.realizado;
-              return (
-                <TableRow key={row.etapa}>
-                  <TableCell className="font-medium">{row.etapa}</TableCell>
-                  <TableCell>{fmt(row.previsto)}</TableCell>
-                  <TableCell>{row.realizado > 0 ? fmt(row.realizado) : "—"}</TableCell>
-                  <TableCell className={diff < 0 ? "text-destructive font-medium" : ""}>
-                    {row.realizado > 0 ? fmt(diff) : "—"}
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-mono text-sm">{row.percentual}%</span>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+            {rows.length === 0 ? (
+              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma despesa registrada</TableCell></TableRow>
+            ) : (
+              rows.map((row) => {
+                const diff = row.previsto - row.realizado;
+                const pct = row.previsto > 0 ? Math.round((row.realizado / row.previsto) * 100) : 0;
+                return (
+                  <TableRow key={row.nome}>
+                    <TableCell className="font-medium">{row.nome}</TableCell>
+                    <TableCell>{fmt(row.previsto)}</TableCell>
+                    <TableCell>{row.realizado > 0 ? fmt(row.realizado) : "—"}</TableCell>
+                    <TableCell className={diff < 0 ? "text-destructive font-medium" : ""}>
+                      {row.realizado > 0 ? fmt(diff) : "—"}
+                    </TableCell>
+                    <TableCell><span className="font-mono text-sm">{pct}%</span></TableCell>
+                  </TableRow>
+                );
+              })
+            )}
           </TableBody>
-          <TableFooter>
-            <TableRow className="font-semibold">
-              <TableCell>Total</TableCell>
-              <TableCell>{fmt(totalPrevisto)}</TableCell>
-              <TableCell>{fmt(totalRealizado)}</TableCell>
-              <TableCell className={saldo < 0 ? "text-destructive" : ""}>{fmt(saldo)}</TableCell>
-              <TableCell>
-                <span className="font-mono">{totalPrevisto > 0 ? Math.round((totalRealizado / totalPrevisto) * 100) : 0}%</span>
-              </TableCell>
-            </TableRow>
-          </TableFooter>
+          {rows.length > 0 && (
+            <TableFooter>
+              <TableRow className="font-semibold">
+                <TableCell>Total</TableCell>
+                <TableCell>{fmt(totalPrevisto)}</TableCell>
+                <TableCell>{fmt(totalRealizado)}</TableCell>
+                <TableCell className={saldo < 0 ? "text-destructive" : ""}>{fmt(saldo)}</TableCell>
+                <TableCell>
+                  <span className="font-mono">{totalPrevisto > 0 ? Math.round((totalRealizado / totalPrevisto) * 100) : 0}%</span>
+                </TableCell>
+              </TableRow>
+            </TableFooter>
+          )}
         </Table>
       </div>
     </div>
