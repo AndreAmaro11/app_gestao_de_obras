@@ -11,11 +11,16 @@ import { Plus, Pencil, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import { useDespesas, useCreateDespesa, useUpdateDespesa, useDeleteDespesa } from "@/hooks/useDespesas";
 import { useEtapas } from "@/hooks/useEtapas";
 import { useSubetapas } from "@/hooks/useSubetapas";
-import { useFornecedores } from "@/hooks/useFornecedores";
+import { useFornecedores, useCreateFornecedor } from "@/hooks/useFornecedores";
 import { useToast } from "@/hooks/use-toast";
 import { DataToolbar, SortableHeader, useSort, useSearch } from "@/components/DataToolbar";
+import { Textarea } from "@/components/ui/textarea";
 
-const categoriaLabel: Record<string, string> = { material: "Material", mao_de_obra: "Mão de Obra", servico: "Serviço" };
+const categoriaLabel: Record<string, string> = {
+  material: "Material", mao_de_obra: "Mão de Obra", servico: "Serviço",
+  equipamento: "Equipamento", transporte: "Transporte", administrativo: "Administrativo",
+  projeto: "Projeto", outros: "Outros",
+};
 const fmt = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 
 interface Props { obraId: string; }
@@ -44,6 +49,7 @@ const DespesasTab = ({ obraId }: Props) => {
   const createDespesa = useCreateDespesa();
   const updateDespesa = useUpdateDespesa();
   const deleteDespesa = useDeleteDespesa();
+  const createFornecedor = useCreateFornecedor();
   const { toast } = useToast();
 
   const [filtroEtapa, setFiltroEtapa] = useState("todos");
@@ -62,6 +68,8 @@ const DespesasTab = ({ obraId }: Props) => {
   const [dataVencimento, setDataVencimento] = useState("");
   const [parcelas, setParcelas] = useState("1");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [showNewFornecedor, setShowNewFornecedor] = useState(false);
+  const [newForn, setNewForn] = useState({ nome: "", nome_fantasia: "", cnpj: "", telefone: "", email: "", endereco: "", observacao: "", tipo: "misto" });
 
   const resetForm = () => {
     setDescricao(""); setEtapaId(""); setSubetapaId(""); setFornecedorId("");
@@ -151,6 +159,56 @@ const DespesasTab = ({ obraId }: Props) => {
         <Button size="sm" onClick={() => { resetForm(); setShowDialog(true); }}><Plus className="h-4 w-4 mr-1" />Nova Despesa</Button>
       </div>
 
+      <Dialog open={showNewFornecedor} onOpenChange={setShowNewFornecedor}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Cadastrar Fornecedor</DialogTitle></DialogHeader>
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            try {
+              const created = await createFornecedor.mutateAsync({
+                nome: newForn.nome, nome_fantasia: newForn.nome_fantasia || null,
+                cnpj: newForn.cnpj || null, telefone: newForn.telefone || null,
+                email: newForn.email || null, endereco: newForn.endereco || null,
+                observacao: newForn.observacao || null, tipo: newForn.tipo as any,
+              });
+              setFornecedorId(created.id);
+              setShowNewFornecedor(false);
+              setNewForn({ nome: "", nome_fantasia: "", cnpj: "", telefone: "", email: "", endereco: "", observacao: "", tipo: "misto" });
+              toast({ title: "Fornecedor criado!" });
+            } catch (err: any) { toast({ title: "Erro", description: err.message, variant: "destructive" }); }
+          }} className="space-y-4 max-h-[70vh] overflow-y-auto">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>Razão Social *</Label><Input value={newForn.nome} onChange={e => setNewForn({ ...newForn, nome: e.target.value })} required /></div>
+              <div className="space-y-2"><Label>Nome Fantasia</Label><Input value={newForn.nome_fantasia} onChange={e => setNewForn({ ...newForn, nome_fantasia: e.target.value })} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>CNPJ/CPF</Label><Input value={newForn.cnpj} onChange={e => setNewForn({ ...newForn, cnpj: e.target.value })} /></div>
+              <div className="space-y-2">
+                <Label>Tipo</Label>
+                <Select value={newForn.tipo} onValueChange={v => setNewForn({ ...newForn, tipo: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="material">Material</SelectItem>
+                    <SelectItem value="mao_de_obra">Mão de Obra</SelectItem>
+                    <SelectItem value="misto">Misto</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>Telefone</Label><Input value={newForn.telefone} onChange={e => setNewForn({ ...newForn, telefone: e.target.value })} /></div>
+              <div className="space-y-2"><Label>E-mail</Label><Input type="email" value={newForn.email} onChange={e => setNewForn({ ...newForn, email: e.target.value })} /></div>
+            </div>
+            <div className="space-y-2"><Label>Endereço</Label><Input value={newForn.endereco} onChange={e => setNewForn({ ...newForn, endereco: e.target.value })} /></div>
+            <div className="space-y-2"><Label>Observação</Label><Textarea value={newForn.observacao} onChange={e => setNewForn({ ...newForn, observacao: e.target.value })} rows={2} /></div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setShowNewFornecedor(false)}>Cancelar</Button>
+              <Button type="submit">Criar</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={showDialog} onOpenChange={(v) => { setShowDialog(v); if (!v) resetForm(); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{editing ? "Editar Despesa" : "Nova Despesa"}</DialogTitle></DialogHeader>
@@ -169,10 +227,17 @@ const DespesasTab = ({ obraId }: Props) => {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Fornecedor</Label>
-                <Select value={fornecedorId} onValueChange={setFornecedorId}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>{fornecedores?.map(f => <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}</SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <Select value={fornecedorId} onValueChange={setFornecedorId}>
+                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>{fornecedores?.map(f => <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <Button type="button" variant="outline" size="icon" onClick={() => setShowNewFornecedor(true)} title="Cadastrar fornecedor">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Categoria</Label>
@@ -182,6 +247,11 @@ const DespesasTab = ({ obraId }: Props) => {
                     <SelectItem value="material">Material</SelectItem>
                     <SelectItem value="mao_de_obra">Mão de Obra</SelectItem>
                     <SelectItem value="servico">Serviço</SelectItem>
+                    <SelectItem value="equipamento">Equipamento</SelectItem>
+                    <SelectItem value="transporte">Transporte</SelectItem>
+                    <SelectItem value="administrativo">Administrativo</SelectItem>
+                    <SelectItem value="projeto">Projeto</SelectItem>
+                    <SelectItem value="outros">Outros</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

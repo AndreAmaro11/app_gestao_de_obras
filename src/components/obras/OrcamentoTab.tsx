@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -170,14 +170,33 @@ const OrcamentoValorSelecionado = ({ itens }: { itens: any[] }) => {
 };
 
 const OrcValorAgg = ({ itens }: { itens: any[] }) => {
-  const totals = itens.map(item => {
-    const { data: cotacoes } = useCotacoes(item.id);
-    const sel = cotacoes?.find((c: any) => c.selecionado);
-    return sel ? sel.valor_unitario * item.quantidade : 0;
-  });
-  const total = totals.reduce((s, v) => s + v, 0);
-  if (total === 0) return <span className="text-muted-foreground">—</span>;
-  return <>R$ {fmt(total)}</>;
+  const [values, setValues] = useState<Record<string, number>>({});
+  const total = Object.values(values).reduce((s, v) => s + v, 0);
+
+  if (!itens.length) return <span className="text-muted-foreground">—</span>;
+
+  return (
+    <>
+      {itens.map(item => (
+        <CotacaoValueReporter key={item.id} itemId={item.id} quantidade={item.quantidade} onValue={(v) => setValues(prev => {
+          if (prev[item.id] === v) return prev;
+          return { ...prev, [item.id]: v };
+        })} />
+      ))}
+      {total > 0 ? <>R$ {fmt(total)}</> : <span className="text-muted-foreground">—</span>}
+    </>
+  );
+};
+
+// Safe hook component: one per item, reports its selected value via useEffect
+const CotacaoValueReporter = ({ itemId, quantidade, onValue }: { itemId: string; quantidade: number; onValue: (v: number) => void }) => {
+  const { data: cotacoes } = useCotacoes(itemId);
+  const sel = cotacoes?.find((c: any) => c.selecionado);
+  const val = sel ? sel.valor_unitario * quantidade : 0;
+
+  useEffect(() => { onValue(val); }, [val]);
+
+  return null;
 };
 
 // Row component that fetches selected cotacao for each item
@@ -452,18 +471,25 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
 
 // Aggregate total valor selecionado for itens view footer
 const TotalValorSelecionado = ({ itens }: { itens: any[] }) => {
-  const totals = itens.map(item => {
-    const { data: cotacoes } = useCotacoes(item.id);
-    const sel = cotacoes?.find((c: any) => c.selecionado);
-    return sel ? sel.valor_unitario * item.quantidade : 0;
-  });
-  const total = totals.reduce((s, v) => s + v, 0);
-  if (total === 0) return <span className="text-muted-foreground">—</span>;
-  return <span className="text-success font-semibold">R$ {fmt(total)}</span>;
+  const [values, setValues] = useState<Record<string, number>>({});
+  const total = Object.values(values).reduce((s, v) => s + v, 0);
+
+  return (
+    <>
+      {itens.map(item => (
+        <CotacaoValueReporter key={item.id} itemId={item.id} quantidade={item.quantidade} onValue={(v) => setValues(prev => {
+          if (prev[item.id] === v) return prev;
+          return { ...prev, [item.id]: v };
+        })} />
+      ))}
+      {total > 0 ? <span className="text-success font-semibold">R$ {fmt(total)}</span> : <span className="text-muted-foreground">—</span>}
+    </>
+  );
 };
 
 // Cotacoes sub-view with inline fornecedor creation and auto-expense generation
 const CotacoesView = ({ itemId, obraId, onBack }: { itemId: string; obraId: string; onBack: () => void }) => {
+  const qc = useQueryClient();
   const { data: cotacoes, isLoading } = useCotacoes(itemId);
   const { data: fornecedores } = useFornecedores();
   const { data: itemData } = useOrcamentoItens(undefined);
@@ -526,6 +552,23 @@ const CotacoesView = ({ itemId, obraId, onBack }: { itemId: string; obraId: stri
 
   const handleSelect = async (id: string) => {
     try {
+      const cot = cotacoes?.find(c => c.id === id);
+      if (cot?.selecionado) {
+        // Deselect
+        await supabase.from("cotacoes").update({ selecionado: false }).eq("id", id);
+        const { data: item } = await supabase.from("orcamento_itens").select("descricao").eq("id", itemId).single();
+        if (item) {
+          await supabase.from("despesas")
+            .update({ deleted_at: new Date().toISOString() })
+            .eq("obra_id", obraId)
+            .eq("origem", "orcamento")
+            .eq("descricao", item.descricao);
+        }
+        qc.invalidateQueries({ queryKey: ["cotacoes", itemId] });
+        qc.invalidateQueries({ queryKey: ["despesas", obraId] });
+        toast({ title: "Fornecedor desselecionado", description: "A despesa vinculada foi removida." });
+        return;
+      }
       await selectCotacao.mutateAsync({ id, orcamento_item_id: itemId, obraId });
       toast({ title: "Despesa gerada com sucesso.", description: "O fornecedor vencedor foi selecionado e a despesa correspondente foi criada automaticamente." });
     } catch (err: any) { toast({ title: "Erro", description: err.message, variant: "destructive" }); }
