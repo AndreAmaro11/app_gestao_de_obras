@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import StatusBadge from "@/components/StatusBadge";
-import { Plus, ArrowLeft, Check, ChevronRight, Pencil, Trash2, Upload } from "lucide-react";
+import { Plus, ArrowLeft, Check, ChevronRight, Pencil, Trash2, Upload, CheckCircle2, Circle } from "lucide-react";
 import {
   useOrcamentos, useCreateOrcamento, useDeleteOrcamento,
   useOrcamentoItens, useCreateOrcamentoItem, useUpdateOrcamentoItem, useDeleteOrcamentoItem,
@@ -16,8 +16,10 @@ import {
 import { useEtapas } from "@/hooks/useEtapas";
 import { useSubetapas } from "@/hooks/useSubetapas";
 import { useFornecedores, useCreateFornecedor } from "@/hooks/useFornecedores";
+import { useDespesas } from "@/hooks/useDespesas";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Badge } from "@/components/ui/badge";
 
 interface Props { obraId: string; }
 type View = "list" | "items" | "cotacoes";
@@ -141,6 +143,51 @@ const OrcamentoRow = ({ orc, onClick, onDelete }: { orc: any; onClick: () => voi
   );
 };
 
+// Row component that fetches selected cotacao for each item
+const ItemRowWithCotacao = ({ item, total, despesa, onEdit, onSelectItem, onDelete }: {
+  item: any; total: number; despesa: any; onEdit: (item: any) => void; onSelectItem: (id: string) => void; onDelete: (id: string) => void;
+}) => {
+  const { data: cotacoes } = useCotacoes(item.id);
+  const selectedCotacao = cotacoes?.find((c: any) => c.selecionado);
+  const valorSelecionado = selectedCotacao ? selectedCotacao.valor_unitario * item.quantidade : null;
+
+  return (
+    <TableRow>
+      <TableCell className="text-muted-foreground">{(item.etapas as any)?.nome || "—"}</TableCell>
+      <TableCell className="font-medium">{item.descricao}</TableCell>
+      <TableCell>{item.unidade}</TableCell>
+      <TableCell className="font-mono">{item.quantidade}</TableCell>
+      <TableCell>R$ {fmt(item.valor_estimado_unitario)}</TableCell>
+      <TableCell className="font-semibold">R$ {fmt(total)}</TableCell>
+      <TableCell className="font-mono">
+        {valorSelecionado != null ? (
+          <span className="text-success font-semibold">R$ {fmt(valorSelecionado)}</span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
+      </TableCell>
+      <TableCell>
+        {despesa ? (
+          <Badge variant="default" className="bg-success text-success-foreground text-xs gap-1">
+            <CheckCircle2 className="h-3 w-3" />Sim
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="text-xs gap-1">
+            <Circle className="h-3 w-3" />Não
+          </Badge>
+        )}
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex justify-end gap-1">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(item)}><Pencil className="h-3.5 w-3.5" /></Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onSelectItem(item.id)}><ChevronRight className="h-3.5 w-3.5" /></Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => onDelete(item.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+};
+
 // Items sub-view
 const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectItem }: {
   orcamentoId: string; obraId: string; orcNome: string; orcStatus: string;
@@ -148,6 +195,7 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
 }) => {
   const { data: itens, isLoading } = useOrcamentoItens(orcamentoId);
   const { data: etapas } = useEtapas(obraId);
+  const { data: despesas } = useDespesas(obraId);
   const createItem = useCreateOrcamentoItem();
   const updateItem = useUpdateOrcamentoItem();
   const deleteItem = useDeleteOrcamentoItem();
@@ -162,6 +210,15 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
   const [valorUnit, setValorUnit] = useState("0");
 
   const totalEstimado = itens?.reduce((sum: number, item: any) => sum + item.quantidade * item.valor_estimado_unitario, 0) || 0;
+
+  // Map despesas by item descricao (for orcamento-originated despesas)
+  const despesaByItem = useMemo(() => {
+    const map = new Map<string, any>();
+    despesas?.filter((d: any) => d.origem === "orcamento" && !d.despesa_pai_id).forEach((d: any) => {
+      map.set(d.descricao, d);
+    });
+    return map;
+  }, [despesas]);
 
   const resetForm = () => { setDescricao(""); setEtapaId(""); setSubetapaId(""); setUnidade("un"); setQuantidade("1"); setValorUnit("0"); setEditingItem(null); };
 
@@ -240,41 +297,30 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
               <TableHead className="w-20">Qtde</TableHead>
               <TableHead className="w-28">Estimado Unit.</TableHead>
               <TableHead className="w-28">Total Est.</TableHead>
+              <TableHead className="w-28">Valor Selecionado</TableHead>
+              <TableHead className="w-24">Despesa</TableHead>
               <TableHead className="w-24 text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
             ) : !itens?.length ? (
-              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhum item</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum item</TableCell></TableRow>
             ) : (
               <>
                 {itens.map(item => {
                   const total = item.quantidade * item.valor_estimado_unitario;
+                  const despesa = despesaByItem.get(item.descricao);
                   return (
-                    <TableRow key={item.id}>
-                      <TableCell className="text-muted-foreground">{(item.etapas as any)?.nome || "—"}</TableCell>
-                      <TableCell className="font-medium">{item.descricao}</TableCell>
-                      <TableCell>{item.unidade}</TableCell>
-                      <TableCell className="font-mono">{item.quantidade}</TableCell>
-                      <TableCell>R$ {fmt(item.valor_estimado_unitario)}</TableCell>
-                      <TableCell className="font-semibold">R$ {fmt(total)}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)}><Pencil className="h-3.5 w-3.5" /></Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onSelectItem(item.id)}><ChevronRight className="h-3.5 w-3.5" /></Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteItem.mutate({ id: item.id, orcamento_id: orcamentoId })}><Trash2 className="h-3.5 w-3.5" /></Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                    <ItemRowWithCotacao key={item.id} item={item} total={total} despesa={despesa} onEdit={openEdit} onSelectItem={onSelectItem} onDelete={(id) => deleteItem.mutate({ id, orcamento_id: orcamentoId })} />
                   );
                 })}
                 {/* Totalizador */}
                 <TableRow className="bg-muted/30 font-semibold">
                   <TableCell colSpan={5} className="text-right">Total Estimado</TableCell>
                   <TableCell>R$ {fmt(totalEstimado)}</TableCell>
-                  <TableCell />
+                  <TableCell colSpan={3} />
                 </TableRow>
               </>
             )}

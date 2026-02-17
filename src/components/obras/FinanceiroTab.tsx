@@ -45,8 +45,31 @@ const FinanceiroTab = ({ obraId }: Props) => {
   const saldo = totalPrevisto - totalRealizado;
 
   // Fluxo de Caixa: show child parcelas AND single despesas (no children) with vencimento
-  const singleDespesasWithVenc = parentDespesas.filter((d: any) => d.data_vencimento && childDespesas.filter((c: any) => c.despesa_pai_id === d.id).length === 0);
-  const fluxoCaixa = [...singleDespesasWithVenc, ...childDespesas.filter((d: any) => d.data_vencimento)]
+  // For parents with parcelas > 1 but no children yet, generate virtual parcelas
+  const singleDespesasWithVenc = parentDespesas.filter((d: any) => d.data_vencimento && childDespesas.filter((c: any) => c.despesa_pai_id === d.id).length === 0 && (!d.parcelas || d.parcelas <= 1));
+  
+  const virtualParcelas: any[] = [];
+  parentDespesas.forEach((d: any) => {
+    if (d.data_vencimento && d.parcelas > 1 && childDespesas.filter((c: any) => c.despesa_pai_id === d.id).length === 0) {
+      const baseDate = new Date(d.data_vencimento + "T12:00:00");
+      const valorParcela = Math.round((d.valor_real || d.valor_previsto) / d.parcelas * 100) / 100;
+      for (let i = 0; i < d.parcelas; i++) {
+        const vencimento = new Date(baseDate);
+        vencimento.setMonth(vencimento.getMonth() + i);
+        virtualParcelas.push({
+          ...d,
+          id: `${d.id}_virtual_${i}`,
+          descricao: `${d.descricao} (${i + 1}/${d.parcelas})`,
+          data_vencimento: vencimento.toISOString().split("T")[0],
+          valor_real: valorParcela,
+          valor_previsto: Math.round((d.valor_previsto) / d.parcelas * 100) / 100,
+          parcela_numero: i + 1,
+        });
+      }
+    }
+  });
+  
+  const fluxoCaixa = [...singleDespesasWithVenc, ...childDespesas.filter((d: any) => d.data_vencimento), ...virtualParcelas]
     .sort((a: any, b: any) => a.data_vencimento.localeCompare(b.data_vencimento));
 
   // === Matrix Report ===
