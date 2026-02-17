@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import { useDespesas, useCreateDespesa, useUpdateDespesa, useDeleteDespesa } from "@/hooks/useDespesas";
 import { useEtapas } from "@/hooks/useEtapas";
 import { useSubetapas } from "@/hooks/useSubetapas";
@@ -60,6 +61,7 @@ const DespesasTab = ({ obraId }: Props) => {
   const [condicaoPagamento, setCondicaoPagamento] = useState("");
   const [dataVencimento, setDataVencimento] = useState("");
   const [parcelas, setParcelas] = useState("1");
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   const resetForm = () => {
     setDescricao(""); setEtapaId(""); setSubetapaId(""); setFornecedorId("");
@@ -78,8 +80,19 @@ const DespesasTab = ({ obraId }: Props) => {
     setShowDialog(true);
   };
 
-  // Filter: hide child parcelas
+  const toggleExpand = (id: string) => {
+    setExpandedRows(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  // Filter: hide child parcelas from main list
   const mainDespesas = despesas?.filter((d: any) => !d.despesa_pai_id) || [];
+  const childDespesas = despesas?.filter((d: any) => !!d.despesa_pai_id) || [];
+
+  const getChildren = (parentId: string) => childDespesas.filter((d: any) => d.despesa_pai_id === parentId);
 
   // Search
   const { search, setSearch, filtered: searched } = useSearch(mainDespesas, ["descricao", "etapas.nome", "fornecedores.nome"]);
@@ -94,9 +107,14 @@ const DespesasTab = ({ obraId }: Props) => {
   // Sort
   const { sorted, sortField, sortDir, toggleSort } = useSort(afterFilters);
 
-  const childCount = (parentId: string) => despesas?.filter((d: any) => d.despesa_pai_id === parentId).length || 0;
   const totalPrevisto = sorted.reduce((s: number, d: any) => s + d.valor_previsto, 0);
   const totalReal = sorted.reduce((s: number, d: any) => s + d.valor_real, 0);
+
+  const handleTogglePago = async (d: any) => {
+    try {
+      await updateDespesa.mutateAsync({ id: d.id, obra_id: obraId, pago: !d.pago });
+    } catch (err: any) { toast({ title: "Erro", description: err.message, variant: "destructive" }); }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -216,58 +234,93 @@ const DespesasTab = ({ obraId }: Props) => {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-8"></TableHead>
               <TableHead className="w-24"><SortableHeader label="Data" field="data" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead><SortableHeader label="Descrição" field="descricao" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
-              <TableHead>Etapa</TableHead>
-              <TableHead>Fornecedor</TableHead>
-              <TableHead className="w-28">Categoria</TableHead>
+              <TableHead><SortableHeader label="Etapa" field="etapas.nome" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
+              <TableHead><SortableHeader label="Fornecedor" field="fornecedores.nome" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
+              <TableHead className="w-28"><SortableHeader label="Categoria" field="categoria" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead className="w-28"><SortableHeader label="Previsto" field="valor_previsto" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead className="w-28"><SortableHeader label="Real" field="valor_real" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
-              <TableHead className="w-24">Vencimento</TableHead>
-              <TableHead className="w-20">Parcelas</TableHead>
-              <TableHead className="w-20">Pago</TableHead>
+              <TableHead className="w-24"><SortableHeader label="Vencimento" field="data_vencimento" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
+              <TableHead className="w-20"><SortableHeader label="Parcelas" field="parcelas" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
+              <TableHead className="w-20"><SortableHeader label="Pago" field="pago" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead className="w-24 text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
             ) : !sorted.length ? (
-              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">{search ? "Nenhum resultado" : "Nenhuma despesa"}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-8">{search ? "Nenhum resultado" : "Nenhuma despesa"}</TableCell></TableRow>
             ) : (
               <>
                 {sorted.map((d: any) => {
-                  const numChildren = childCount(d.id);
+                  const children = getChildren(d.id);
+                  const hasChildren = children.length > 0;
+                  const isExpanded = expandedRows.has(d.id);
                   return (
-                    <TableRow key={d.id}>
-                      <TableCell>{new Date(d.data).toLocaleDateString("pt-BR")}</TableCell>
-                      <TableCell className="font-medium">{d.descricao}</TableCell>
-                      <TableCell>{d.etapas?.nome || "—"}</TableCell>
-                      <TableCell>{d.fornecedores?.nome || "—"}</TableCell>
-                      <TableCell><Badge variant="outline" className="text-xs">{categoriaLabel[d.categoria]}</Badge></TableCell>
-                      <TableCell>R$ {fmt(d.valor_previsto)}</TableCell>
-                      <TableCell className={d.valor_real > d.valor_previsto ? "text-destructive font-medium" : ""}>
-                        {d.valor_real > 0 ? `R$ ${fmt(d.valor_real)}` : "—"}
-                      </TableCell>
-                      <TableCell>{d.data_vencimento ? new Date(d.data_vencimento).toLocaleDateString("pt-BR") : "—"}</TableCell>
-                      <TableCell className="text-center font-mono">
-                        {numChildren > 0 ? <Badge variant="secondary" className="text-xs">{numChildren}x</Badge> : (d.parcelas || 1)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={d.pago ? "default" : "outline"} className={d.pago ? "bg-success text-success-foreground" : ""}>{d.pago ? "Sim" : "Não"}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(d)}><Pencil className="h-3.5 w-3.5" /></Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteDespesa.mutate({ id: d.id, obra_id: obraId })}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                    <>
+                      <TableRow key={d.id}>
+                        <TableCell className="px-1">
+                          {hasChildren ? (
+                            <button onClick={() => toggleExpand(d.id)} className="p-0.5 hover:bg-muted rounded">
+                              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                            </button>
+                          ) : (d.parcelas && d.parcelas > 1) ? (
+                            <button onClick={() => toggleExpand(d.id)} className="p-0.5 hover:bg-muted rounded opacity-50">
+                              <ChevronRight className="h-4 w-4" />
+                            </button>
+                          ) : null}
+                        </TableCell>
+                        <TableCell>{new Date(d.data).toLocaleDateString("pt-BR")}</TableCell>
+                        <TableCell className="font-medium">{d.descricao}</TableCell>
+                        <TableCell>{d.etapas?.nome || "—"}</TableCell>
+                        <TableCell>{d.fornecedores?.nome || "—"}</TableCell>
+                        <TableCell><Badge variant="outline" className="text-xs">{categoriaLabel[d.categoria]}</Badge></TableCell>
+                        <TableCell>R$ {fmt(d.valor_previsto)}</TableCell>
+                        <TableCell className={d.valor_real > d.valor_previsto ? "text-destructive font-medium" : ""}>
+                          {d.valor_real > 0 ? `R$ ${fmt(d.valor_real)}` : "—"}
+                        </TableCell>
+                        <TableCell>{d.data_vencimento ? new Date(d.data_vencimento).toLocaleDateString("pt-BR") : "—"}</TableCell>
+                        <TableCell className="text-center font-mono">
+                          {hasChildren ? <Badge variant="secondary" className="text-xs">{children.length}x</Badge> : (d.parcelas || 1)}
+                        </TableCell>
+                        <TableCell>
+                          <Switch checked={d.pago} onCheckedChange={() => handleTogglePago(d)} />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(d)}><Pencil className="h-3.5 w-3.5" /></Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteDespesa.mutate({ id: d.id, obra_id: obraId })}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      {isExpanded && children.map((c: any) => (
+                        <TableRow key={c.id} className="bg-muted/20">
+                          <TableCell></TableCell>
+                          <TableCell className="text-muted-foreground text-sm">{new Date(c.data).toLocaleDateString("pt-BR")}</TableCell>
+                          <TableCell className="text-sm pl-6">{c.descricao}</TableCell>
+                          <TableCell className="text-sm">{c.etapas?.nome || "—"}</TableCell>
+                          <TableCell className="text-sm">{c.fornecedores?.nome || "—"}</TableCell>
+                          <TableCell></TableCell>
+                          <TableCell className="text-sm">R$ {fmt(c.valor_previsto)}</TableCell>
+                          <TableCell className="text-sm">R$ {fmt(c.valor_real)}</TableCell>
+                          <TableCell className="text-sm">{c.data_vencimento ? new Date(c.data_vencimento).toLocaleDateString("pt-BR") : "—"}</TableCell>
+                          <TableCell className="text-center text-sm font-mono">{c.parcela_numero || "—"}</TableCell>
+                          <TableCell>
+                            <Switch checked={c.pago} onCheckedChange={() => handleTogglePago(c)} />
+                          </TableCell>
+                          <TableCell></TableCell>
+                        </TableRow>
+                      ))}
+                    </>
                   );
                 })}
                 <TableRow className="bg-muted/30 font-semibold">
+                  <TableCell />
                   <TableCell colSpan={5} className="text-right">Total</TableCell>
                   <TableCell>R$ {fmt(totalPrevisto)}</TableCell>
                   <TableCell>R$ {fmt(totalReal)}</TableCell>

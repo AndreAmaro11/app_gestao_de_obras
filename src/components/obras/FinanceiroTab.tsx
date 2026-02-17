@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useDespesas } from "@/hooks/useDespesas";
 import { useEtapas } from "@/hooks/useEtapas";
 import { ChevronDown, ChevronRight } from "lucide-react";
@@ -13,8 +14,9 @@ interface Props { obraId: string; }
 const FinanceiroTab = ({ obraId }: Props) => {
   const { data: despesas, isLoading: loadingDespesas } = useDespesas(obraId);
   const { data: etapas, isLoading: loadingEtapas } = useEtapas(obraId);
-  const [showMatrix, setShowMatrix] = useState(true);
   const [expandedEtapas, setExpandedEtapas] = useState<Set<string>>(new Set());
+  const [showFluxo, setShowFluxo] = useState(true);
+  const [showMatrix, setShowMatrix] = useState(true);
 
   if (loadingDespesas || loadingEtapas) return <div className="text-center text-muted-foreground py-8">Carregando...</div>;
 
@@ -23,7 +25,6 @@ const FinanceiroTab = ({ obraId }: Props) => {
   etapas?.forEach(et => byEtapa.set(et.id, { nome: et.nome, previsto: 0, realizado: 0 }));
   let semEtapaPrev = 0, semEtapaReal = 0;
 
-  // Only consider individual parcelas (children) for fluxo, and parents for summary
   const parentDespesas = (despesas || []).filter((d: any) => !d.despesa_pai_id);
   const childDespesas = (despesas || []).filter((d: any) => !!d.despesa_pai_id);
 
@@ -44,8 +45,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
   const totalRealizado = rows.reduce((s, r) => s + r.realizado, 0);
   const saldo = totalPrevisto - totalRealizado;
 
-  // Fluxo de Caixa: show child parcelas AND single despesas (no children) with vencimento
-  // For parents with parcelas > 1 but no children yet, generate virtual parcelas
+  // Fluxo de Caixa
   const singleDespesasWithVenc = parentDespesas.filter((d: any) => d.data_vencimento && childDespesas.filter((c: any) => c.despesa_pai_id === d.id).length === 0 && (!d.parcelas || d.parcelas <= 1));
   
   const virtualParcelas: any[] = [];
@@ -72,8 +72,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
   const fluxoCaixa = [...singleDespesasWithVenc, ...childDespesas.filter((d: any) => d.data_vencimento), ...virtualParcelas]
     .sort((a: any, b: any) => a.data_vencimento.localeCompare(b.data_vencimento));
 
-  // === Matrix Report ===
-  // All despesas with vencimento (parcelas individuais)
+  // Matrix
   const allWithVenc = fluxoCaixa;
   const months = new Set<string>();
   allWithVenc.forEach((d: any) => {
@@ -82,14 +81,12 @@ const FinanceiroTab = ({ obraId }: Props) => {
   });
   const sortedMonths = Array.from(months).sort();
 
-  // Build matrix: Etapa > Subetapa > Fornecedor
   type MatrixRow = { label: string; level: number; values: Record<string, number>; total: number };
   const matrixRows: MatrixRow[] = [];
 
   const etapaMap = new Map<string, string>();
   etapas?.forEach(et => etapaMap.set(et.id, et.nome));
 
-  // Group by etapa_id
   const byEtapaId = new Map<string, any[]>();
   allWithVenc.forEach((d: any) => {
     const key = d.etapa_id || "__sem__";
@@ -115,7 +112,6 @@ const FinanceiroTab = ({ obraId }: Props) => {
     matrixRows.push({ label: etapaNome, level: 0, values: etapaValues, total: etapaTotal });
 
     if (expandedEtapas.has(etapaId)) {
-      // Group by fornecedor within etapa
       const byForn = new Map<string, any[]>();
       items.forEach((d: any) => {
         const key = d.fornecedor_id || "__sem__";
@@ -136,7 +132,6 @@ const FinanceiroTab = ({ obraId }: Props) => {
     }
   });
 
-  // Month totals
   const monthTotals: Record<string, number> = {};
   allWithVenc.forEach((d: any) => {
     const m = `${new Date(d.data_vencimento).getFullYear()}-${String(new Date(d.data_vencimento).getMonth() + 1).padStart(2, "0")}`;
@@ -212,105 +207,119 @@ const FinanceiroTab = ({ obraId }: Props) => {
         </Table>
       </div>
 
-      {/* Fluxo de Caixa */}
-      <h3 className="text-md font-semibold mt-4">Fluxo de Caixa (por vencimento)</h3>
-      <div className="bg-card rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-28">Vencimento</TableHead>
-              <TableHead>Descrição</TableHead>
-              <TableHead>Fornecedor</TableHead>
-              <TableHead className="w-28">Valor</TableHead>
-              <TableHead className="w-20">Parcela</TableHead>
-              <TableHead className="w-20">Pago</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {fluxoCaixa.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma despesa com vencimento</TableCell></TableRow>
-            ) : fluxoCaixa.map((d: any) => (
-              <TableRow key={d.id}>
-                <TableCell>{new Date(d.data_vencimento).toLocaleDateString("pt-BR")}</TableCell>
-                <TableCell className="font-medium">{d.descricao}</TableCell>
-                <TableCell>{d.fornecedores?.nome || "—"}</TableCell>
-                <TableCell>{fmt(d.valor_real || d.valor_previsto)}</TableCell>
-                <TableCell className="text-center font-mono">{d.parcela_numero ? `${d.parcela_numero}` : "—"}</TableCell>
-                <TableCell>
-                  <Badge variant={d.pago ? "default" : "outline"} className={d.pago ? "bg-success text-success-foreground" : ""}>{d.pago ? "Sim" : "Não"}</Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Relatório Matricial */}
-      <div className="flex items-center justify-between mt-6">
-        <h3 className="text-md font-semibold">Relatório Matricial de Fluxo de Caixa</h3>
-        <Button variant="outline" size="sm" onClick={() => setShowMatrix(!showMatrix)}>
-          {showMatrix ? "Ocultar" : "Mostrar"}
-        </Button>
-      </div>
-
-      {showMatrix && sortedMonths.length > 0 && (
-        <div className="bg-card rounded-md border overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="min-w-[200px] sticky left-0 bg-card z-10">Etapa / Fornecedor</TableHead>
-                {sortedMonths.map(m => (
-                  <TableHead key={m} className="w-28 text-center">{formatMonth(m)}</TableHead>
-                ))}
-                <TableHead className="w-32 text-center font-semibold">Total</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {matrixRows.map((row, idx) => (
-                <TableRow key={idx} className={row.level === 0 ? "bg-muted/20 font-semibold" : ""}>
-                  <TableCell className={`sticky left-0 bg-card z-10 ${row.level === 0 ? "bg-muted/20" : ""}`}>
-                    <div className="flex items-center gap-1" style={{ paddingLeft: row.level * 20 }}>
-                      {row.level === 0 && (
-                        <button onClick={() => {
-                          const etapaId = [...byEtapaId.keys()].find(k => {
-                            const nome = k === "__sem__" ? "Sem etapa" : (etapaMap.get(k) || "Etapa desconhecida");
-                            return nome === row.label;
-                          });
-                          if (etapaId) toggleEtapa(etapaId);
-                        }} className="p-0.5 hover:bg-muted rounded">
-                          {expandedEtapas.has([...byEtapaId.keys()].find(k => (k === "__sem__" ? "Sem etapa" : (etapaMap.get(k) || "")) === row.label) || "") 
-                            ? <ChevronDown className="h-3.5 w-3.5" /> 
-                            : <ChevronRight className="h-3.5 w-3.5" />}
-                        </button>
-                      )}
-                      {row.label}
-                    </div>
-                  </TableCell>
-                  {sortedMonths.map(m => (
-                    <TableCell key={m} className="text-center font-mono text-sm">
-                      {row.values[m] ? fmt(row.values[m]) : "—"}
-                    </TableCell>
-                  ))}
-                  <TableCell className="text-center font-mono font-semibold">{fmt(row.total)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-            <TableFooter>
-              <TableRow className="font-bold">
-                <TableCell className="sticky left-0 bg-card z-10">Total Geral</TableCell>
-                {sortedMonths.map(m => (
-                  <TableCell key={m} className="text-center font-mono">{monthTotals[m] ? fmt(monthTotals[m]) : "—"}</TableCell>
-                ))}
-                <TableCell className="text-center font-mono">{fmt(grandTotal)}</TableCell>
-              </TableRow>
-            </TableFooter>
-          </Table>
+      {/* Relatório Matricial - FIRST */}
+      <Collapsible open={showMatrix} onOpenChange={setShowMatrix}>
+        <div className="flex items-center justify-between">
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" className="flex items-center gap-2 p-0 h-auto hover:bg-transparent">
+              {showMatrix ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <h3 className="text-md font-semibold">Relatório Matricial de Fluxo de Caixa</h3>
+            </Button>
+          </CollapsibleTrigger>
         </div>
-      )}
+        <CollapsibleContent className="mt-3">
+          {sortedMonths.length > 0 ? (
+            <div className="bg-card rounded-md border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="min-w-[200px] sticky left-0 bg-card z-10">Etapa / Fornecedor</TableHead>
+                    {sortedMonths.map(m => (
+                      <TableHead key={m} className="w-28 text-center">{formatMonth(m)}</TableHead>
+                    ))}
+                    <TableHead className="w-32 text-center font-semibold">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {matrixRows.map((row, idx) => (
+                    <TableRow key={idx} className={row.level === 0 ? "bg-muted/20 font-semibold" : ""}>
+                      <TableCell className={`sticky left-0 bg-card z-10 ${row.level === 0 ? "bg-muted/20" : ""}`}>
+                        <div className="flex items-center gap-1" style={{ paddingLeft: row.level * 20 }}>
+                          {row.level === 0 && (
+                            <button onClick={() => {
+                              const etapaId = [...byEtapaId.keys()].find(k => {
+                                const nome = k === "__sem__" ? "Sem etapa" : (etapaMap.get(k) || "Etapa desconhecida");
+                                return nome === row.label;
+                              });
+                              if (etapaId) toggleEtapa(etapaId);
+                            }} className="p-0.5 hover:bg-muted rounded">
+                              {expandedEtapas.has([...byEtapaId.keys()].find(k => (k === "__sem__" ? "Sem etapa" : (etapaMap.get(k) || "")) === row.label) || "") 
+                                ? <ChevronDown className="h-3.5 w-3.5" /> 
+                                : <ChevronRight className="h-3.5 w-3.5" />}
+                            </button>
+                          )}
+                          {row.label}
+                        </div>
+                      </TableCell>
+                      {sortedMonths.map(m => (
+                        <TableCell key={m} className="text-center font-mono text-sm">
+                          {row.values[m] ? fmt(row.values[m]) : "—"}
+                        </TableCell>
+                      ))}
+                      <TableCell className="text-center font-mono font-semibold">{fmt(row.total)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+                <TableFooter>
+                  <TableRow className="font-bold">
+                    <TableCell className="sticky left-0 bg-card z-10">Total Geral</TableCell>
+                    {sortedMonths.map(m => (
+                      <TableCell key={m} className="text-center font-mono">{monthTotals[m] ? fmt(monthTotals[m]) : "—"}</TableCell>
+                    ))}
+                    <TableCell className="text-center font-mono">{fmt(grandTotal)}</TableCell>
+                  </TableRow>
+                </TableFooter>
+              </Table>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Nenhuma despesa com vencimento para exibir no relatório matricial.</p>
+          )}
+        </CollapsibleContent>
+      </Collapsible>
 
-      {showMatrix && sortedMonths.length === 0 && (
-        <p className="text-sm text-muted-foreground">Nenhuma despesa com vencimento para exibir no relatório matricial.</p>
-      )}
+      {/* Fluxo de Caixa - SECOND */}
+      <Collapsible open={showFluxo} onOpenChange={setShowFluxo}>
+        <div className="flex items-center justify-between">
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" className="flex items-center gap-2 p-0 h-auto hover:bg-transparent">
+              {showFluxo ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <h3 className="text-md font-semibold">Fluxo de Caixa (por vencimento)</h3>
+            </Button>
+          </CollapsibleTrigger>
+        </div>
+        <CollapsibleContent className="mt-3">
+          <div className="bg-card rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-28">Vencimento</TableHead>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead>Fornecedor</TableHead>
+                  <TableHead className="w-28">Valor</TableHead>
+                  <TableHead className="w-20">Parcela</TableHead>
+                  <TableHead className="w-20">Pago</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {fluxoCaixa.length === 0 ? (
+                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma despesa com vencimento</TableCell></TableRow>
+                ) : fluxoCaixa.map((d: any) => (
+                  <TableRow key={d.id}>
+                    <TableCell>{new Date(d.data_vencimento).toLocaleDateString("pt-BR")}</TableCell>
+                    <TableCell className="font-medium">{d.descricao}</TableCell>
+                    <TableCell>{d.fornecedores?.nome || "—"}</TableCell>
+                    <TableCell>{fmt(d.valor_real || d.valor_previsto)}</TableCell>
+                    <TableCell className="text-center font-mono">{d.parcela_numero ? `${d.parcela_numero}` : "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant={d.pago ? "default" : "outline"} className={d.pago ? "bg-success text-success-foreground" : ""}>{d.pago ? "Sim" : "Não"}</Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   );
 };
