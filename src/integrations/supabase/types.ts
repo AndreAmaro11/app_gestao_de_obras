@@ -645,7 +645,15 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      categoria_despesa: "material" | "mao_de_obra" | "servico"
+      categoria_despesa:
+        | "material"
+        | "mao_de_obra"
+        | "servico"
+        | "equipamento"
+        | "transporte"
+        | "administrativo"
+        | "projeto"
+        | "outros"
       origem_despesa: "manual" | "orcamento"
       padrao_obra: "baixo" | "medio" | "alto"
       status_etapa: "nao_iniciada" | "em_andamento" | "concluida"
@@ -778,7 +786,16 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      categoria_despesa: ["material", "mao_de_obra", "servico"],
+      categoria_despesa: [
+        "material",
+        "mao_de_obra",
+        "servico",
+        "equipamento",
+        "transporte",
+        "administrativo",
+        "projeto",
+        "outros",
+      ],
       origem_despesa: ["manual", "orcamento"],
       padrao_obra: ["baixo", "medio", "alto"],
       status_etapa: ["nao_iniciada", "em_andamento", "concluida"],
