@@ -12,6 +12,7 @@ import { useEtapas } from "@/hooks/useEtapas";
 import { useSubetapas } from "@/hooks/useSubetapas";
 import { useFornecedores } from "@/hooks/useFornecedores";
 import { useToast } from "@/hooks/use-toast";
+import { DataToolbar, SortableHeader, useSort, useSearch } from "@/components/DataToolbar";
 
 const categoriaLabel: Record<string, string> = { material: "Material", mao_de_obra: "Mão de Obra", servico: "Serviço" };
 const fmt = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
@@ -44,8 +45,8 @@ const DespesasTab = ({ obraId }: Props) => {
   const deleteDespesa = useDeleteDespesa();
   const { toast } = useToast();
 
-  const [filtroEtapa, setFiltroEtapa] = useState("todas");
-  const [filtroCategoria, setFiltroCategoria] = useState("todas");
+  const [filtroEtapa, setFiltroEtapa] = useState("todos");
+  const [filtroCategoria, setFiltroCategoria] = useState("todos");
   const [showDialog, setShowDialog] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [descricao, setDescricao] = useState("");
@@ -77,19 +78,25 @@ const DespesasTab = ({ obraId }: Props) => {
     setShowDialog(true);
   };
 
-  // Filter: hide child parcelas from main list (show parent only), unless no parent
+  // Filter: hide child parcelas
   const mainDespesas = despesas?.filter((d: any) => !d.despesa_pai_id) || [];
-  const filtered = mainDespesas.filter((d: any) => {
-    if (filtroEtapa !== "todas" && d.etapa_id !== filtroEtapa) return false;
-    if (filtroCategoria !== "todas" && d.categoria !== filtroCategoria) return false;
+
+  // Search
+  const { search, setSearch, filtered: searched } = useSearch(mainDespesas, ["descricao", "etapas.nome", "fornecedores.nome"]);
+
+  // Apply filters
+  const afterFilters = searched.filter((d: any) => {
+    if (filtroEtapa !== "todos" && d.etapa_id !== filtroEtapa) return false;
+    if (filtroCategoria !== "todos" && d.categoria !== filtroCategoria) return false;
     return true;
   });
 
-  // Count child parcelas for display
-  const childCount = (parentId: string) => despesas?.filter((d: any) => d.despesa_pai_id === parentId).length || 0;
+  // Sort
+  const { sorted, sortField, sortDir, toggleSort } = useSort(afterFilters);
 
-  const totalPrevisto = filtered.reduce((s: number, d: any) => s + d.valor_previsto, 0);
-  const totalReal = filtered.reduce((s: number, d: any) => s + d.valor_real, 0);
+  const childCount = (parentId: string) => despesas?.filter((d: any) => d.despesa_pai_id === parentId).length || 0;
+  const totalPrevisto = sorted.reduce((s: number, d: any) => s + d.valor_previsto, 0);
+  const totalReal = sorted.reduce((s: number, d: any) => s + d.valor_real, 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -173,7 +180,7 @@ const DespesasTab = ({ obraId }: Props) => {
             </div>
             {Number(parcelas) > 1 && dataVencimento && (
               <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
-                Serão geradas {parcelas} parcelas de R$ {fmt(Number(valorReal || 0) / Number(parcelas))} cada, 
+                Serão geradas {parcelas} parcelas de R$ {fmt(Number(valorReal || 0) / Number(parcelas))} cada,
                 com vencimentos mensais a partir de {new Date(dataVencimento + "T12:00:00").toLocaleDateString("pt-BR")}.
               </p>
             )}
@@ -182,36 +189,40 @@ const DespesasTab = ({ obraId }: Props) => {
         </DialogContent>
       </Dialog>
 
-      <div className="flex gap-3">
+      <DataToolbar
+        searchPlaceholder="Buscar despesa..."
+        searchValue={search}
+        onSearchChange={setSearch}
+      >
         <Select value={filtroEtapa} onValueChange={setFiltroEtapa}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="Filtrar etapa" /></SelectTrigger>
+          <SelectTrigger className="w-40 h-9"><SelectValue placeholder="Etapa" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="todas">Todas as etapas</SelectItem>
+            <SelectItem value="todos">Todas etapas</SelectItem>
             {etapas?.map(et => <SelectItem key={et.id} value={et.id}>{et.nome}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="Filtrar categoria" /></SelectTrigger>
+          <SelectTrigger className="w-40 h-9"><SelectValue placeholder="Categoria" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="todas">Todas as categorias</SelectItem>
+            <SelectItem value="todos">Todas</SelectItem>
             <SelectItem value="material">Material</SelectItem>
             <SelectItem value="mao_de_obra">Mão de Obra</SelectItem>
             <SelectItem value="servico">Serviço</SelectItem>
           </SelectContent>
         </Select>
-      </div>
+      </DataToolbar>
 
       <div className="bg-card rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-24">Data</TableHead>
-              <TableHead>Descrição</TableHead>
+              <TableHead className="w-24"><SortableHeader label="Data" field="data" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
+              <TableHead><SortableHeader label="Descrição" field="descricao" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead>Etapa</TableHead>
               <TableHead>Fornecedor</TableHead>
               <TableHead className="w-28">Categoria</TableHead>
-              <TableHead className="w-28">Previsto</TableHead>
-              <TableHead className="w-28">Real</TableHead>
+              <TableHead className="w-28"><SortableHeader label="Previsto" field="valor_previsto" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
+              <TableHead className="w-28"><SortableHeader label="Real" field="valor_real" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead className="w-24">Vencimento</TableHead>
               <TableHead className="w-20">Parcelas</TableHead>
               <TableHead className="w-20">Pago</TableHead>
@@ -221,11 +232,11 @@ const DespesasTab = ({ obraId }: Props) => {
           <TableBody>
             {isLoading ? (
               <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
-            ) : !filtered.length ? (
-              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">Nenhuma despesa</TableCell></TableRow>
+            ) : !sorted.length ? (
+              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">{search ? "Nenhum resultado" : "Nenhuma despesa"}</TableCell></TableRow>
             ) : (
               <>
-                {filtered.map((d: any) => {
+                {sorted.map((d: any) => {
                   const numChildren = childCount(d.id);
                   return (
                     <TableRow key={d.id}>
