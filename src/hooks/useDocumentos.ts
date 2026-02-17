@@ -1,6 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+// Sanitize filename for Supabase storage (remove accents and special chars)
+const sanitizeFilename = (name: string) => {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]/g, "_");
+};
+
 export const usePastas = (obraId: string, pastaId?: string | null) => {
   return useQuery({
     queryKey: ["pastas", obraId, pastaId ?? "root"],
@@ -75,7 +83,8 @@ export const useUploadDocumento = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ obraId, pastaId, file }: { obraId: string; pastaId?: string | null; file: File }) => {
-      const path = `${obraId}/${crypto.randomUUID()}-${file.name}`;
+      const safeName = sanitizeFilename(file.name);
+      const path = `${obraId}/${crypto.randomUUID()}-${safeName}`;
       const { error: upErr } = await supabase.storage.from("obra-documentos").upload(path, file);
       if (upErr) throw upErr;
       const { data, error } = await supabase

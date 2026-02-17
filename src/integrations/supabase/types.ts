@@ -309,14 +309,17 @@ export type Database = {
       fornecedores: {
         Row: {
           cnpj: string | null
+          contato: string | null
           deleted_at: string | null
           email: string | null
           endereco: string | null
           etapa_id: string | null
           id: string
+          indicacao: boolean
           nome: string
           nome_fantasia: string | null
           observacao: string | null
+          rede_social: string | null
           subetapa_id: string | null
           tags: string[] | null
           telefone: string | null
@@ -325,14 +328,17 @@ export type Database = {
         }
         Insert: {
           cnpj?: string | null
+          contato?: string | null
           deleted_at?: string | null
           email?: string | null
           endereco?: string | null
           etapa_id?: string | null
           id?: string
+          indicacao?: boolean
           nome: string
           nome_fantasia?: string | null
           observacao?: string | null
+          rede_social?: string | null
           subetapa_id?: string | null
           tags?: string[] | null
           telefone?: string | null
@@ -341,14 +347,17 @@ export type Database = {
         }
         Update: {
           cnpj?: string | null
+          contato?: string | null
           deleted_at?: string | null
           email?: string | null
           endereco?: string | null
           etapa_id?: string | null
           id?: string
+          indicacao?: boolean
           nome?: string
           nome_fantasia?: string | null
           observacao?: string | null
+          rede_social?: string | null
           subetapa_id?: string | null
           tags?: string[] | null
           telefone?: string | null

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
 import { useFornecedores, useCreateFornecedor, useUpdateFornecedor, useDeleteFornecedor } from "@/hooks/useFornecedores";
 import { useObras } from "@/hooks/useObras";
@@ -67,18 +68,22 @@ const FornecedoresPage = () => {
   const [etapaId, setEtapaId] = useState<string>("");
   const [subetapaId, setSubetapaId] = useState<string>("");
   const [filtroTipo, setFiltroTipo] = useState("todos");
+  const [contato, setContato] = useState("");
+  const [indicacao, setIndicacao] = useState(false);
+  const [redeSocial, setRedeSocial] = useState("");
 
   const { data: etapas } = useEtapas(obraId || undefined);
   const { data: subetapas } = useSubetapas(etapaId || undefined);
 
   // Search + Sort
-  const { search, setSearch, filtered: searched } = useSearch(fornecedores, ["nome", "nome_fantasia", "cnpj", "email", "telefone"]);
+  const { search, setSearch, filtered: searched } = useSearch(fornecedores, ["nome", "nome_fantasia", "cnpj", "email", "telefone", "contato"]);
   const afterFilter = searched.filter((f: any) => filtroTipo === "todos" || f.tipo === filtroTipo);
   const { sorted, sortField, sortDir, toggleSort } = useSort(afterFilter, "nome");
 
   const resetForm = () => {
     setNome(""); setNomeFantasia(""); setCnpj(""); setTelefone(""); setEmail(""); setEndereco(""); setObs(""); setTipo("misto"); setTags([]);
     setObraId(""); setEtapaId(""); setSubetapaId(""); setEditing(null);
+    setContato(""); setIndicacao(false); setRedeSocial("");
   };
 
   const openEdit = (f: any) => {
@@ -86,6 +91,7 @@ const FornecedoresPage = () => {
     setNome(f.nome); setNomeFantasia(f.nome_fantasia || ""); setCnpj(f.cnpj || ""); setTelefone(f.telefone || "");
     setEmail(f.email || ""); setEndereco(f.endereco || ""); setObs(f.observacao || ""); setTipo(f.tipo);
     setTags(f.tags || []);
+    setContato(f.contato || ""); setIndicacao(f.indicacao || false); setRedeSocial(f.rede_social || "");
     if (f.etapa_id && f.etapas?.obra_id) {
       setObraId(f.etapas.obra_id); setEtapaId(f.etapa_id); setSubetapaId(f.subetapa_id || "");
     } else { setObraId(""); setEtapaId(""); setSubetapaId(""); }
@@ -100,6 +106,7 @@ const FornecedoresPage = () => {
         telefone: telefone || null, email: email || null, endereco: endereco || null,
         observacao: obs || null, tipo: tipo as any, tags,
         etapa_id: etapaId || null, subetapa_id: subetapaId || null,
+        contato: contato || null, indicacao, rede_social: redeSocial || null,
       };
       if (editing) await updateFornecedor.mutateAsync({ id: editing.id, ...payload });
       else await createFornecedor.mutateAsync(payload);
@@ -143,10 +150,18 @@ const FornecedoresPage = () => {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2"><Label>Contato</Label><Input value={contato} onChange={e => setContato(e.target.value)} placeholder="Nome do contato" /></div>
                 <div className="space-y-2"><Label>Telefone</Label><Input value={telefone} onChange={e => setTelefone(e.target.value)} /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2"><Label>E-mail</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} /></div>
+                <div className="space-y-2"><Label>Rede Social</Label><Input value={redeSocial} onChange={e => setRedeSocial(e.target.value)} placeholder="@instagram, etc." /></div>
               </div>
               <div className="space-y-2"><Label>Endereço</Label><Input value={endereco} onChange={e => setEndereco(e.target.value)} /></div>
+              <div className="flex items-center gap-3">
+                <Switch checked={indicacao} onCheckedChange={setIndicacao} id="indicacao" />
+                <Label htmlFor="indicacao">Indicação</Label>
+              </div>
               <div className="space-y-2"><Label>Observação</Label><Textarea value={obs} onChange={e => setObs(e.target.value)} rows={2} /></div>
               <div className="space-y-2">
                 <Label className="text-muted-foreground text-xs uppercase tracking-wide">Associação (opcional)</Label>
@@ -208,11 +223,11 @@ const FornecedoresPage = () => {
             <TableRow>
               <TableHead><SortableHeader label="Razão Social" field="nome" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead><SortableHeader label="Nome Fantasia" field="nome_fantasia" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
-              <TableHead className="w-36">CNPJ/CPF</TableHead>
+              <TableHead className="w-32"><SortableHeader label="Contato" field="contato" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead className="w-32"><SortableHeader label="Telefone" field="telefone" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
-              <TableHead className="w-44">E-mail</TableHead>
               <TableHead className="w-28"><SortableHeader label="Tipo" field="tipo" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
-              <TableHead>Etapa</TableHead>
+              <TableHead className="w-20">Indicação</TableHead>
+              <TableHead className="w-32">Rede Social</TableHead>
               <TableHead>Tags</TableHead>
               <TableHead className="w-24 text-right">Ações</TableHead>
             </TableRow>
@@ -227,14 +242,13 @@ const FornecedoresPage = () => {
                 <TableRow key={f.id}>
                   <TableCell className="font-medium">{f.nome}</TableCell>
                   <TableCell className="text-sm">{f.nome_fantasia || "—"}</TableCell>
-                  <TableCell className="text-sm">{f.cnpj || "—"}</TableCell>
+                  <TableCell className="text-sm">{f.contato || "—"}</TableCell>
                   <TableCell className="text-sm">{f.telefone || "—"}</TableCell>
-                  <TableCell className="text-sm">{f.email || "—"}</TableCell>
                   <TableCell><Badge variant="outline" className="text-xs">{tipoLabel[f.tipo]}</Badge></TableCell>
-                  <TableCell className="text-sm">
-                    {f.etapas?.nome || "—"}
-                    {f.subetapas?.nome ? ` / ${f.subetapas.nome}` : ""}
+                  <TableCell>
+                    {f.indicacao ? <Badge variant="default" className="bg-success text-success-foreground text-xs">Sim</Badge> : <span className="text-muted-foreground">—</span>}
                   </TableCell>
+                  <TableCell className="text-sm">{f.rede_social || "—"}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
                       {(f.tags || []).map((tag: string) => <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>)}

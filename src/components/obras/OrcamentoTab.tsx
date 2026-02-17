@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import StatusBadge from "@/components/StatusBadge";
 import { Plus, ArrowLeft, Check, ChevronRight, Pencil, Trash2, Upload, CheckCircle2, Circle, RefreshCw } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { SortableHeader, useSort } from "@/components/DataToolbar";
 import {
   useOrcamentos, useCreateOrcamento, useDeleteOrcamento,
   useOrcamentoItens, useCreateOrcamentoItem, useUpdateOrcamentoItem, useDeleteOrcamentoItem,
@@ -104,15 +105,17 @@ const OrcamentoTab = ({ obraId }: Props) => {
             <TableRow>
               <TableHead>Nome</TableHead>
               <TableHead className="w-32">Status</TableHead>
+              <TableHead className="w-20">Itens</TableHead>
               <TableHead className="w-36">Valor Estimado</TableHead>
+              <TableHead className="w-36">Valor Selecionado</TableHead>
               <TableHead className="w-24 text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
             ) : !orcamentos?.length ? (
-              <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Nenhum orçamento</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhum orçamento</TableCell></TableRow>
             ) : (
               orcamentos.map(orc => (
                 <OrcamentoRow key={orc.id} orc={orc} onClick={() => { setSelectedOrcamentoId(orc.id); setView("items"); }} onDelete={(e) => handleDeleteOrc(orc.id, e)} />
@@ -129,12 +132,17 @@ const OrcamentoTab = ({ obraId }: Props) => {
 const OrcamentoRow = ({ orc, onClick, onDelete }: { orc: any; onClick: () => void; onDelete: (e: React.MouseEvent) => void }) => {
   const { data: itens } = useOrcamentoItens(orc.id);
   const totalEstimado = itens?.reduce((sum: number, item: any) => sum + item.quantidade * item.valor_estimado_unitario, 0) || 0;
+  const totalItens = itens?.length || 0;
 
   return (
     <TableRow className="cursor-pointer hover:bg-muted/50" onClick={onClick}>
       <TableCell className="font-medium">{orc.nome}</TableCell>
       <TableCell><StatusBadge status={orc.status} /></TableCell>
+      <TableCell className="text-center font-mono">{totalItens}</TableCell>
       <TableCell className="font-mono">R$ {fmt(totalEstimado)}</TableCell>
+      <TableCell className="font-mono">
+        <OrcamentoValorSelecionado itens={itens || []} />
+      </TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end gap-1">
           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={onDelete}><Trash2 className="h-3.5 w-3.5" /></Button>
@@ -143,6 +151,33 @@ const OrcamentoRow = ({ orc, onClick, onDelete }: { orc: any; onClick: () => voi
       </TableCell>
     </TableRow>
   );
+};
+
+// Sub-component to fetch selected cotacao value for each orcamento
+const OrcamentoValorSelecionado = ({ itens }: { itens: any[] }) => {
+  // We need to fetch cotacoes for each item - this is a simple aggregation
+  // Using individual ItemValorSelecionado components that sum up
+  const [total, setTotal] = useState(0);
+  const [loaded, setLoaded] = useState(0);
+
+  if (!itens.length) return <span className="text-muted-foreground">—</span>;
+
+  return (
+    <span className="text-success font-semibold">
+      <OrcValorAgg itens={itens} />
+    </span>
+  );
+};
+
+const OrcValorAgg = ({ itens }: { itens: any[] }) => {
+  const totals = itens.map(item => {
+    const { data: cotacoes } = useCotacoes(item.id);
+    const sel = cotacoes?.find((c: any) => c.selecionado);
+    return sel ? sel.valor_unitario * item.quantidade : 0;
+  });
+  const total = totals.reduce((s, v) => s + v, 0);
+  if (total === 0) return <span className="text-muted-foreground">—</span>;
+  return <>R$ {fmt(total)}</>;
 };
 
 // Row component that fetches selected cotacao for each item
@@ -205,7 +240,6 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
   const createItem = useCreateOrcamentoItem();
   const updateItem = useUpdateOrcamentoItem();
   const deleteItem = useDeleteOrcamentoItem();
-  const selectCotacaoMut = useSelectCotacao();
   const qc = useQueryClient();
   const { toast } = useToast();
   const [showAdd, setShowAdd] = useState(false);
@@ -252,7 +286,6 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
     setRegenerating(true);
     let count = 0;
     for (const item of itemsToRegen) {
-      // Find selected cotacao for this item
       const { data: cotacoes } = await supabase
         .from("cotacoes")
         .select("*")
@@ -261,13 +294,11 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
         .is("deleted_at", null)
         .single();
       if (cotacoes) {
-        // Remove old despesas
         await supabase.from("despesas")
           .update({ deleted_at: new Date().toISOString() })
           .eq("obra_id", obraId)
           .eq("origem", "orcamento")
           .eq("descricao", item.descricao);
-        // Create new
         await supabase.from("despesas").insert({
           obra_id: obraId,
           etapa_id: item.etapa_id,
@@ -323,6 +354,9 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
     } catch (err: any) { toast({ title: "Erro", description: err.message, variant: "destructive" }); }
   };
 
+  // Sort
+  const { sorted, sortField, sortDir, toggleSort } = useSort(itens);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -371,11 +405,11 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
               <TableHead className="w-10">
                 <Checkbox checked={itens?.length ? selectedIds.size === itens.length : false} onCheckedChange={toggleAll} />
               </TableHead>
-              <TableHead>Etapa</TableHead>
-              <TableHead>Descrição</TableHead>
-              <TableHead className="w-20">Unidade</TableHead>
-              <TableHead className="w-20">Qtde</TableHead>
-              <TableHead className="w-28">Estimado Unit.</TableHead>
+              <TableHead><SortableHeader label="Etapa" field="etapas.nome" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
+              <TableHead><SortableHeader label="Descrição" field="descricao" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
+              <TableHead className="w-20"><SortableHeader label="Unidade" field="unidade" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
+              <TableHead className="w-20"><SortableHeader label="Qtde" field="quantidade" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
+              <TableHead className="w-28"><SortableHeader label="Estimado Unit." field="valor_estimado_unitario" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead className="w-28">Total Est.</TableHead>
               <TableHead className="w-28">Valor Selecionado</TableHead>
               <TableHead className="w-24">Despesa</TableHead>
@@ -385,11 +419,11 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
           <TableBody>
             {isLoading ? (
               <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
-            ) : !itens?.length ? (
+            ) : !sorted?.length ? (
               <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Nenhum item</TableCell></TableRow>
             ) : (
               <>
-                {itens.map(item => {
+                {sorted.map((item: any) => {
                   const total = item.quantidade * item.valor_estimado_unitario;
                   const despesa = despesaByItem.get(item.descricao);
                   return (
@@ -397,9 +431,12 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
                   );
                 })}
                 <TableRow className="bg-muted/30 font-semibold">
-                  <TableCell colSpan={6} className="text-right">Total Estimado</TableCell>
+                  <TableCell colSpan={6} className="text-right">Total</TableCell>
                   <TableCell>R$ {fmt(totalEstimado)}</TableCell>
-                  <TableCell colSpan={3} />
+                  <TableCell>
+                    <TotalValorSelecionado itens={sorted} />
+                  </TableCell>
+                  <TableCell colSpan={2} />
                 </TableRow>
               </>
             )}
@@ -408,6 +445,18 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
       </div>
     </div>
   );
+};
+
+// Aggregate total valor selecionado for itens view footer
+const TotalValorSelecionado = ({ itens }: { itens: any[] }) => {
+  const totals = itens.map(item => {
+    const { data: cotacoes } = useCotacoes(item.id);
+    const sel = cotacoes?.find((c: any) => c.selecionado);
+    return sel ? sel.valor_unitario * item.quantidade : 0;
+  });
+  const total = totals.reduce((s, v) => s + v, 0);
+  if (total === 0) return <span className="text-muted-foreground">—</span>;
+  return <span className="text-success font-semibold">R$ {fmt(total)}</span>;
 };
 
 // Cotacoes sub-view with inline fornecedor creation and auto-expense generation
@@ -427,7 +476,6 @@ const CotacoesView = ({ itemId, obraId, onBack }: { itemId: string; obraId: stri
   const [prazo, setPrazo] = useState("");
   const [observacao, setObservacao] = useState("");
 
-  // Inline fornecedor creation - expanded fields
   const [showNewFornecedor, setShowNewFornecedor] = useState(false);
   const [newForn, setNewForn] = useState({ nome: "", nome_fantasia: "", cnpj: "", telefone: "", email: "", endereco: "", observacao: "", tipo: "misto" });
 
@@ -479,7 +527,8 @@ const CotacoesView = ({ itemId, obraId, onBack }: { itemId: string; obraId: stri
   };
 
   const handleUploadArquivo = async (cotId: string, file: File) => {
-    const path = `cotacoes/${cotId}/${file.name}`;
+    const safeName = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `cotacoes/${cotId}/${safeName}`;
     const { error: upErr } = await supabase.storage.from("obra-documentos").upload(path, file, { upsert: true });
     if (upErr) { toast({ title: "Erro no upload", description: upErr.message, variant: "destructive" }); return; }
     const { data: urlData } = supabase.storage.from("obra-documentos").getPublicUrl(path);
@@ -517,7 +566,6 @@ const CotacoesView = ({ itemId, obraId, onBack }: { itemId: string; obraId: stri
         <Button size="sm" onClick={() => { resetForm(); setShowAdd(true); }}><Plus className="h-4 w-4 mr-1" />Nova Cotação</Button>
       </div>
 
-      {/* Dialog cadastro completo de fornecedor */}
       <Dialog open={showNewFornecedor} onOpenChange={setShowNewFornecedor}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Cadastro Completo de Fornecedor</DialogTitle></DialogHeader>

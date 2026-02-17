@@ -4,16 +4,22 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usePastas, useCreatePasta, useDeletePasta, useDocumentos, useUploadDocumento, useDeleteDocumento, useDownloadDocumento } from "@/hooks/useDocumentos";
 import { useToast } from "@/hooks/use-toast";
-import { Folder, FolderPlus, ArrowLeft, Upload, Download, Trash2, FileText } from "lucide-react";
+import { Folder, FolderPlus, ArrowLeft, Upload, Download, Trash2, FileText, Grid, List, LayoutGrid, Image as ImageIcon } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   obraId: string;
 }
 
+type ViewMode = "list" | "small" | "medium" | "large";
+
+const isImage = (tipo: string | null) => tipo?.startsWith("image/");
+
 const DocumentosTab = ({ obraId }: Props) => {
   const [pastaAtual, setPastaAtual] = useState<string | null>(null);
   const [breadcrumbs, setBreadcrumbs] = useState<{ id: string | null; nome: string }[]>([{ id: null, nome: "Raiz" }]);
   const [novaPasta, setNovaPasta] = useState("");
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
   const fileRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -66,6 +72,26 @@ const DocumentosTab = ({ obraId }: Props) => {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  const getPublicUrl = (url: string) => {
+    const { data } = supabase.storage.from("obra-documentos").getPublicUrl(url);
+    return data.publicUrl;
+  };
+
+  const getSignedUrl = (url: string) => {
+    // For private buckets, we need a signed URL
+    return supabase.storage.from("obra-documentos").createSignedUrl(url, 3600);
+  };
+
+  const viewModes: { mode: ViewMode; icon: React.ReactNode; label: string }[] = [
+    { mode: "list", icon: <List className="h-4 w-4" />, label: "Lista" },
+    { mode: "small", icon: <Grid className="h-4 w-4" />, label: "Pequeno" },
+    { mode: "medium", icon: <LayoutGrid className="h-4 w-4" />, label: "Médio" },
+    { mode: "large", icon: <ImageIcon className="h-4 w-4" />, label: "Grande" },
+  ];
+
+  const gridClass = viewMode === "small" ? "grid-cols-6 sm:grid-cols-8 md:grid-cols-10" : viewMode === "medium" ? "grid-cols-3 sm:grid-cols-4 md:grid-cols-6" : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4";
+  const thumbSize = viewMode === "small" ? "h-16 w-16" : viewMode === "medium" ? "h-28 w-28" : "h-44 w-44";
+
   return (
     <div className="space-y-4">
       {/* Breadcrumbs */}
@@ -98,55 +124,124 @@ const DocumentosTab = ({ obraId }: Props) => {
           <Upload className="h-4 w-4 mr-1" />Upload
         </Button>
         <input ref={fileRef} type="file" multiple className="hidden" onChange={handleUpload} />
+
+        <div className="ml-auto flex items-center border rounded-md">
+          {viewModes.map(vm => (
+            <Button key={vm.mode} variant={viewMode === vm.mode ? "default" : "ghost"} size="sm" className="h-8 px-2" onClick={() => setViewMode(vm.mode)} title={vm.label}>
+              {vm.icon}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {/* Content */}
-      <div className="bg-card rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead className="w-24">Tamanho</TableHead>
-              <TableHead className="w-20 text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {pastas?.map((p) => (
-              <TableRow key={p.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navegarPasta(p.id, p.nome)}>
-                <TableCell className="font-medium">
-                  <div className="flex items-center gap-2"><Folder className="h-4 w-4 text-accent" />{p.nome}</div>
-                </TableCell>
-                <TableCell>—</TableCell>
-                <TableCell className="text-right">
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={e => { e.stopPropagation(); deletePasta.mutate({ id: p.id, obraId }); }}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </TableCell>
+      {viewMode === "list" ? (
+        <div className="bg-card rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nome</TableHead>
+                <TableHead className="w-24">Tamanho</TableHead>
+                <TableHead className="w-20 text-right">Ações</TableHead>
               </TableRow>
-            ))}
-            {documentos?.map((d) => (
-              <TableRow key={d.id}>
-                <TableCell className="font-medium">
-                  <div className="flex items-center gap-2"><FileText className="h-4 w-4 text-muted-foreground" />{d.nome}</div>
-                </TableCell>
-                <TableCell className="text-muted-foreground">{formatSize(d.tamanho)}</TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-1">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => downloadDoc(d.url, d.nome)}>
-                      <Download className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteDoc.mutate({ id: d.id, obraId, url: d.url })}>
+            </TableHeader>
+            <TableBody>
+              {pastas?.map((p) => (
+                <TableRow key={p.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navegarPasta(p.id, p.nome)}>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2"><Folder className="h-4 w-4 text-accent" />{p.nome}</div>
+                  </TableCell>
+                  <TableCell>—</TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={e => { e.stopPropagation(); deletePasta.mutate({ id: p.id, obraId }); }}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            {!pastas?.length && !documentos?.length && (
-              <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">Pasta vazia</TableCell></TableRow>
-            )}
-          </TableBody>
-        </Table>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {documentos?.map((d) => (
+                <TableRow key={d.id}>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      {isImage(d.tipo_arquivo) ? <ImageIcon className="h-4 w-4 text-muted-foreground" /> : <FileText className="h-4 w-4 text-muted-foreground" />}
+                      {d.nome}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{formatSize(d.tamanho)}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => downloadDoc(d.url, d.nome)}>
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteDoc.mutate({ id: d.id, obraId, url: d.url })}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {!pastas?.length && !documentos?.length && (
+                <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">Pasta vazia</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      ) : (
+        <div className={`grid ${gridClass} gap-3`}>
+          {pastas?.map((p) => (
+            <div key={p.id} className="group relative flex flex-col items-center justify-center bg-card border rounded-md p-3 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => navegarPasta(p.id, p.nome)}>
+              <Folder className={`${viewMode === "small" ? "h-8 w-8" : viewMode === "medium" ? "h-12 w-12" : "h-16 w-16"} text-accent`} />
+              <span className="text-xs text-center mt-1 truncate w-full">{p.nome}</span>
+              <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 text-destructive" onClick={e => { e.stopPropagation(); deletePasta.mutate({ id: p.id, obraId }); }}>
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
+          ))}
+          {documentos?.map((d) => (
+            <DocGridItem key={d.id} doc={d} viewMode={viewMode} thumbSize={thumbSize} onDownload={() => downloadDoc(d.url, d.nome)} onDelete={() => deleteDoc.mutate({ id: d.id, obraId, url: d.url })} getSignedUrl={getSignedUrl} />
+          ))}
+          {!pastas?.length && !documentos?.length && (
+            <div className="col-span-full text-center text-muted-foreground py-8">Pasta vazia</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const DocGridItem = ({ doc, viewMode, thumbSize, onDownload, onDelete, getSignedUrl }: {
+  doc: any; viewMode: ViewMode; thumbSize: string;
+  onDownload: () => void; onDelete: () => void;
+  getSignedUrl: (url: string) => Promise<{ data: { signedUrl: string } | null; error: any }>;
+}) => {
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const isImg = isImage(doc.tipo_arquivo);
+
+  useState(() => {
+    if (isImg) {
+      getSignedUrl(doc.url).then(({ data }) => {
+        if (data) setSignedUrl(data.signedUrl);
+      });
+    }
+  });
+
+  return (
+    <div className="group relative flex flex-col items-center bg-card border rounded-md p-2 hover:bg-muted/50 transition-colors">
+      <div className={`${thumbSize} flex items-center justify-center overflow-hidden rounded`}>
+        {isImg && signedUrl ? (
+          <img src={signedUrl} alt={doc.nome} className="object-cover w-full h-full rounded" />
+        ) : (
+          <FileText className={`${viewMode === "small" ? "h-8 w-8" : viewMode === "medium" ? "h-12 w-12" : "h-16 w-16"} text-muted-foreground`} />
+        )}
+      </div>
+      <span className="text-xs text-center mt-1 truncate w-full">{doc.nome}</span>
+      <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100">
+        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onDownload}>
+          <Download className="h-3 w-3" />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={onDelete}>
+          <Trash2 className="h-3 w-3" />
+        </Button>
       </div>
     </div>
   );
