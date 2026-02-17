@@ -124,7 +124,7 @@ export const useCotacoes = (itemId: string | undefined) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("cotacoes")
-        .select("*, fornecedores(nome)")
+        .select("*, fornecedores(nome, telefone)")
         .eq("orcamento_item_id", itemId!)
         .is("deleted_at", null);
       if (error) throw error;
@@ -146,65 +146,75 @@ export const useCreateCotacao = () => {
   });
 };
 
-export const useSelectCotacao = () => {
+export const useDeleteCotacao = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, orcamento_item_id }: { id: string; orcamento_item_id: string }) => {
-      // Deselect all others first
-      await supabase.from("cotacoes").update({ selecionado: false }).eq("orcamento_item_id", orcamento_item_id);
-      // Select chosen one
-      const { error } = await supabase.from("cotacoes").update({ selecionado: true }).eq("id", id);
+      const { error } = await supabase.from("cotacoes").update({ deleted_at: new Date().toISOString() }).eq("id", id);
       if (error) throw error;
+      return orcamento_item_id;
     },
-    onSuccess: (_, v) => qc.invalidateQueries({ queryKey: ["cotacoes", v.orcamento_item_id] }),
+    onSuccess: (orcamento_item_id) => qc.invalidateQueries({ queryKey: ["cotacoes", orcamento_item_id] }),
   });
 };
 
+// Select cotacao AND auto-generate despesa
+export const useSelectCotacao = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, orcamento_item_id, obraId }: { id: string; orcamento_item_id: string; obraId: string }) => {
+      // Deselect all others
+      await supabase.from("cotacoes").update({ selecionado: false }).eq("orcamento_item_id", orcamento_item_id);
+      // Select chosen
+      const { error } = await supabase.from("cotacoes").update({ selecionado: true }).eq("id", id);
+      if (error) throw error;
+
+      // Fetch item + cotacao details for despesa generation
+      const { data: cotacao } = await supabase.from("cotacoes").select("*, fornecedores(nome)").eq("id", id).single();
+      const { data: item } = await supabase.from("orcamento_itens").select("*").eq("id", orcamento_item_id).single();
+
+      if (cotacao && item) {
+        // Remove previous auto-generated despesas for this item
+        await supabase.from("despesas")
+          .update({ deleted_at: new Date().toISOString() })
+          .eq("obra_id", obraId)
+          .eq("origem", "orcamento")
+          .eq("descricao", item.descricao);
+
+        // Create new despesa
+        await supabase.from("despesas").insert({
+          obra_id: obraId,
+          etapa_id: item.etapa_id,
+          subetapa_id: item.subetapa_id || null,
+          fornecedor_id: cotacao.fornecedor_id,
+          descricao: item.descricao,
+          categoria: "material" as const,
+          valor_previsto: cotacao.valor_unitario * item.quantidade,
+          valor_real: 0,
+          pago: false,
+          origem: "orcamento" as const,
+        });
+      }
+
+      return { orcamento_item_id, obraId };
+    },
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: ["cotacoes", result.orcamento_item_id] });
+      qc.invalidateQueries({ queryKey: ["despesas", result.obraId] });
+    },
+  });
+};
+
+// Keep for backwards compatibility but no longer primary flow
 export const useAprovarOrcamento = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ orcamentoId, obraId }: { orcamentoId: string; obraId: string }) => {
-      // Update orcamento status
       const { error: statusError } = await supabase.from("orcamentos").update({ status: "aprovado" }).eq("id", orcamentoId);
       if (statusError) throw statusError;
-      
-      // Get items with selected cotacoes
-      const { data: itens, error: itensError } = await supabase
-        .from("orcamento_itens")
-        .select("*, cotacoes(*)")
-        .eq("orcamento_id", orcamentoId)
-        .is("deleted_at", null);
-
-      if (itensError) throw itensError;
-      if (!itens || itens.length === 0) return;
-
-      const despesas = itens
-        .map((item) => {
-          const selected = (item.cotacoes as any[])?.find((c: any) => c.selecionado && !c.deleted_at);
-          if (!selected) return null;
-          return {
-            obra_id: obraId,
-            etapa_id: item.etapa_id,
-            subetapa_id: item.subetapa_id || null,
-            fornecedor_id: selected.fornecedor_id,
-            descricao: item.descricao,
-            categoria: "material" as const,
-            valor_previsto: selected.valor_unitario * item.quantidade,
-            valor_real: 0,
-            pago: false,
-            origem: "orcamento" as const,
-          };
-        })
-        .filter(Boolean);
-
-      if (despesas.length > 0) {
-        const { error: despError } = await supabase.from("despesas").insert(despesas as any[]);
-        if (despError) throw despError;
-      }
     },
     onSuccess: (_, v) => {
       qc.invalidateQueries({ queryKey: ["orcamentos", v.obraId] });
-      qc.invalidateQueries({ queryKey: ["despesas", v.obraId] });
     },
   });
 };

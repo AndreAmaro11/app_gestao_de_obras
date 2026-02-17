@@ -23,10 +23,10 @@ export const useFornecedores = () => {
 export const useCreateFornecedor = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (f: Omit<TablesInsert<"fornecedores">, "user_id">) => {
+    mutationFn: async (f: Omit<TablesInsert<"fornecedores">, "user_id"> & { nome_fantasia?: string | null; endereco?: string | null; observacao?: string | null }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Não autenticado");
-      const { data, error } = await supabase.from("fornecedores").insert({ ...f, user_id: user.id }).select().single();
+      const { data, error } = await supabase.from("fornecedores").insert({ ...f, user_id: user.id } as any).select().single();
       if (error) throw error;
       return data;
     },
@@ -37,8 +37,8 @@ export const useCreateFornecedor = () => {
 export const useUpdateFornecedor = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: TablesUpdate<"fornecedores"> & { id: string }) => {
-      const { error } = await supabase.from("fornecedores").update(updates).eq("id", id);
+    mutationFn: async ({ id, ...updates }: TablesUpdate<"fornecedores"> & { id: string; nome_fantasia?: string | null; endereco?: string | null; observacao?: string | null }) => {
+      const { error } = await supabase.from("fornecedores").update(updates as any).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["fornecedores"] }),
