@@ -27,24 +27,27 @@ export const useCreateDespesa = () => {
 
       if (numParcelas > 1 && d.data_vencimento) {
         // Create parent despesa (full value, no parcela_numero)
+        const parentPayload = { ...d, parcelas: numParcelas };
+        // Remove extra fields not in the table
+        delete (parentPayload as any).parcelas_list;
+        
         const { data: parent, error: parentErr } = await supabase
           .from("despesas")
-          .insert({ ...d, parcelas: numParcelas } as any)
+          .insert(parentPayload as any)
           .select()
           .single();
         if (parentErr) throw parentErr;
 
-        // Generate child parcelas
+        // Generate child parcelas one by one to avoid batch RLS issues
         const valorParcela = Math.round((d.valor_real || 0) / numParcelas * 100) / 100;
         const valorPrevParcela = Math.round((d.valor_previsto || 0) / numParcelas * 100) / 100;
-        const baseDate = new Date(d.data_vencimento);
+        const baseDate = new Date(d.data_vencimento + "T12:00:00");
 
-        const parcelas = [];
         for (let i = 0; i < numParcelas; i++) {
           const vencimento = new Date(baseDate);
           vencimento.setMonth(vencimento.getMonth() + i);
 
-          parcelas.push({
+          const childPayload = {
             obra_id: d.obra_id,
             descricao: `${d.descricao} (${i + 1}/${numParcelas})`,
             etapa_id: d.etapa_id || null,
@@ -61,11 +64,14 @@ export const useCreateDespesa = () => {
             despesa_pai_id: parent.id,
             pago: false,
             origem: d.origem || "manual",
-          } as any);
-        }
+          };
 
-        const { error: childErr } = await supabase.from("despesas").insert(parcelas);
-        if (childErr) throw childErr;
+          const { error: childErr } = await supabase.from("despesas").insert(childPayload as any);
+          if (childErr) {
+            console.error(`Error creating parcela ${i + 1}:`, childErr);
+            throw childErr;
+          }
+        }
 
         return parent;
       } else {
