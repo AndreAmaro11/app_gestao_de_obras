@@ -111,12 +111,14 @@ export type Database = {
           data_vencimento: string | null
           deleted_at: string | null
           descricao: string
+          despesa_pai_id: string | null
           etapa_id: string | null
           fornecedor_id: string | null
           id: string
           obra_id: string
           origem: Database["public"]["Enums"]["origem_despesa"]
           pago: boolean
+          parcela_numero: number | null
           parcelas: number | null
           subetapa_id: string | null
           valor_previsto: number
@@ -129,12 +131,14 @@ export type Database = {
           data_vencimento?: string | null
           deleted_at?: string | null
           descricao: string
+          despesa_pai_id?: string | null
           etapa_id?: string | null
           fornecedor_id?: string | null
           id?: string
           obra_id: string
           origem?: Database["public"]["Enums"]["origem_despesa"]
           pago?: boolean
+          parcela_numero?: number | null
           parcelas?: number | null
           subetapa_id?: string | null
           valor_previsto?: number
@@ -147,18 +151,27 @@ export type Database = {
           data_vencimento?: string | null
           deleted_at?: string | null
           descricao?: string
+          despesa_pai_id?: string | null
           etapa_id?: string | null
           fornecedor_id?: string | null
           id?: string
           obra_id?: string
           origem?: Database["public"]["Enums"]["origem_despesa"]
           pago?: boolean
+          parcela_numero?: number | null
           parcelas?: number | null
           subetapa_id?: string | null
           valor_previsto?: number
           valor_real?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "despesas_despesa_pai_id_fkey"
+            columns: ["despesa_pai_id"]
+            isOneToOne: false
+            referencedRelation: "despesas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "despesas_etapa_id_fkey"
             columns: ["etapa_id"]

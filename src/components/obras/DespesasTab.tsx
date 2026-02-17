@@ -14,6 +14,7 @@ import { useFornecedores } from "@/hooks/useFornecedores";
 import { useToast } from "@/hooks/use-toast";
 
 const categoriaLabel: Record<string, string> = { material: "Material", mao_de_obra: "Mão de Obra", servico: "Serviço" };
+const fmt = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 
 interface Props { obraId: string; }
 
@@ -67,32 +68,33 @@ const DespesasTab = ({ obraId }: Props) => {
   };
 
   const openEdit = (d: any) => {
-    setEditing(d);
-    setDescricao(d.descricao);
-    setEtapaId(d.etapa_id || "");
-    setSubetapaId(d.subetapa_id || "");
-    setFornecedorId(d.fornecedor_id || "");
-    setCategoria(d.categoria);
-    setValorPrev(String(d.valor_previsto));
-    setValorReal(String(d.valor_real));
-    setData(d.data);
+    setEditing(d); setDescricao(d.descricao); setEtapaId(d.etapa_id || "");
+    setSubetapaId(d.subetapa_id || ""); setFornecedorId(d.fornecedor_id || "");
+    setCategoria(d.categoria); setValorPrev(String(d.valor_previsto));
+    setValorReal(String(d.valor_real)); setData(d.data);
     setCondicaoPagamento(d.condicao_pagamento || "");
-    setDataVencimento(d.data_vencimento || "");
-    setParcelas(String(d.parcelas || 1));
+    setDataVencimento(d.data_vencimento || ""); setParcelas(String(d.parcelas || 1));
     setShowDialog(true);
   };
 
-  const filtered = despesas?.filter((d) => {
+  // Filter: hide child parcelas from main list (show parent only), unless no parent
+  const mainDespesas = despesas?.filter((d: any) => !d.despesa_pai_id) || [];
+  const filtered = mainDespesas.filter((d: any) => {
     if (filtroEtapa !== "todas" && d.etapa_id !== filtroEtapa) return false;
     if (filtroCategoria !== "todas" && d.categoria !== filtroCategoria) return false;
     return true;
-  }) || [];
+  });
+
+  // Count child parcelas for display
+  const childCount = (parentId: string) => despesas?.filter((d: any) => d.despesa_pai_id === parentId).length || 0;
+
+  const totalPrevisto = filtered.reduce((s: number, d: any) => s + d.valor_previsto, 0);
+  const totalReal = filtered.reduce((s: number, d: any) => s + d.valor_real, 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const payload = {
-      obra_id: obraId,
-      descricao,
+      obra_id: obraId, descricao,
       etapa_id: etapaId || null,
       subetapa_id: subetapaId && subetapaId !== "__none__" ? subetapaId : null,
       fornecedor_id: fornecedorId || null,
@@ -109,6 +111,9 @@ const DespesasTab = ({ obraId }: Props) => {
         await updateDespesa.mutateAsync({ id: editing.id, obra_id: obraId, ...payload });
       } else {
         await createDespesa.mutateAsync(payload);
+        if (Number(parcelas) > 1 && dataVencimento) {
+          toast({ title: `Despesa criada com ${parcelas} parcelas automáticas!` });
+        }
       }
       setShowDialog(false); resetForm();
     } catch (err: any) { toast({ title: "Erro", description: err.message, variant: "destructive" }); }
@@ -162,10 +167,16 @@ const DespesasTab = ({ obraId }: Props) => {
               <div className="space-y-2"><Label>Data</Label><Input type="date" value={data} onChange={e => setData(e.target.value)} /></div>
             </div>
             <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2"><Label>Condição Pagamento</Label><Input value={condicaoPagamento} onChange={e => setCondicaoPagamento(e.target.value)} placeholder="Ex: 30/60/90" /></div>
+              <div className="space-y-2"><Label>Condição Pgto</Label><Input value={condicaoPagamento} onChange={e => setCondicaoPagamento(e.target.value)} placeholder="Ex: 30/60/90" /></div>
               <div className="space-y-2"><Label>Vencimento</Label><Input type="date" value={dataVencimento} onChange={e => setDataVencimento(e.target.value)} /></div>
               <div className="space-y-2"><Label>Parcelas</Label><Input type="number" min="1" value={parcelas} onChange={e => setParcelas(e.target.value)} /></div>
             </div>
+            {Number(parcelas) > 1 && dataVencimento && (
+              <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+                Serão geradas {parcelas} parcelas de R$ {fmt(Number(valorReal || 0) / Number(parcelas))} cada, 
+                com vencimentos mensais a partir de {new Date(dataVencimento + "T12:00:00").toLocaleDateString("pt-BR")}.
+              </p>
+            )}
             <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => { setShowDialog(false); resetForm(); }}>Cancelar</Button><Button type="submit">{editing ? "Salvar" : "Criar"}</Button></div>
           </form>
         </DialogContent>
@@ -202,41 +213,56 @@ const DespesasTab = ({ obraId }: Props) => {
               <TableHead className="w-28">Previsto</TableHead>
               <TableHead className="w-28">Real</TableHead>
               <TableHead className="w-24">Vencimento</TableHead>
+              <TableHead className="w-20">Parcelas</TableHead>
               <TableHead className="w-20">Pago</TableHead>
               <TableHead className="w-24 text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
             ) : !filtered.length ? (
-              <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Nenhuma despesa</TableCell></TableRow>
+              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">Nenhuma despesa</TableCell></TableRow>
             ) : (
-              filtered.map((d) => (
-                <TableRow key={d.id}>
-                  <TableCell>{new Date(d.data).toLocaleDateString("pt-BR")}</TableCell>
-                  <TableCell className="font-medium">{d.descricao}</TableCell>
-                  <TableCell>{(d.etapas as any)?.nome || "—"}</TableCell>
-                  <TableCell>{(d.fornecedores as any)?.nome || "—"}</TableCell>
-                  <TableCell><Badge variant="outline" className="text-xs">{categoriaLabel[d.categoria]}</Badge></TableCell>
-                  <TableCell>R$ {d.valor_previsto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
-                  <TableCell className={d.valor_real > d.valor_previsto ? "text-destructive font-medium" : ""}>
-                    {d.valor_real > 0 ? `R$ ${d.valor_real.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"}
-                  </TableCell>
-                  <TableCell>{(d as any).data_vencimento ? new Date((d as any).data_vencimento).toLocaleDateString("pt-BR") : "—"}</TableCell>
-                  <TableCell>
-                    <Badge variant={d.pago ? "default" : "outline"} className={d.pago ? "bg-success text-success-foreground" : ""}>{d.pago ? "Sim" : "Não"}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(d)}><Pencil className="h-3.5 w-3.5" /></Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteDespesa.mutate({ id: d.id, obra_id: obraId })}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
+              <>
+                {filtered.map((d: any) => {
+                  const numChildren = childCount(d.id);
+                  return (
+                    <TableRow key={d.id}>
+                      <TableCell>{new Date(d.data).toLocaleDateString("pt-BR")}</TableCell>
+                      <TableCell className="font-medium">{d.descricao}</TableCell>
+                      <TableCell>{d.etapas?.nome || "—"}</TableCell>
+                      <TableCell>{d.fornecedores?.nome || "—"}</TableCell>
+                      <TableCell><Badge variant="outline" className="text-xs">{categoriaLabel[d.categoria]}</Badge></TableCell>
+                      <TableCell>R$ {fmt(d.valor_previsto)}</TableCell>
+                      <TableCell className={d.valor_real > d.valor_previsto ? "text-destructive font-medium" : ""}>
+                        {d.valor_real > 0 ? `R$ ${fmt(d.valor_real)}` : "—"}
+                      </TableCell>
+                      <TableCell>{d.data_vencimento ? new Date(d.data_vencimento).toLocaleDateString("pt-BR") : "—"}</TableCell>
+                      <TableCell className="text-center font-mono">
+                        {numChildren > 0 ? <Badge variant="secondary" className="text-xs">{numChildren}x</Badge> : (d.parcelas || 1)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={d.pago ? "default" : "outline"} className={d.pago ? "bg-success text-success-foreground" : ""}>{d.pago ? "Sim" : "Não"}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(d)}><Pencil className="h-3.5 w-3.5" /></Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteDespesa.mutate({ id: d.id, obra_id: obraId })}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                <TableRow className="bg-muted/30 font-semibold">
+                  <TableCell colSpan={5} className="text-right">Total</TableCell>
+                  <TableCell>R$ {fmt(totalPrevisto)}</TableCell>
+                  <TableCell>R$ {fmt(totalReal)}</TableCell>
+                  <TableCell colSpan={4} />
                 </TableRow>
-              ))
+              </>
             )}
           </TableBody>
         </Table>
