@@ -139,8 +139,8 @@ const OrcamentoRow = ({ orc, onClick, onDelete }: { orc: any; onClick: () => voi
       <TableCell className="font-medium">{orc.nome}</TableCell>
       <TableCell><StatusBadge status={orc.status} /></TableCell>
       <TableCell className="text-center font-mono">{totalItens}</TableCell>
-      <TableCell className="font-mono">R$ {fmt(totalEstimado)}</TableCell>
-      <TableCell className="font-mono">
+      <TableCell className="font-mono whitespace-nowrap">R$ {fmt(totalEstimado)}</TableCell>
+      <TableCell className="font-mono whitespace-nowrap">
         <OrcamentoValorSelecionado itens={itens || []} />
       </TableCell>
       <TableCell className="text-right">
@@ -188,6 +188,7 @@ const ItemRowWithCotacao = ({ item, total, despesa, selected, onToggleSelect, on
   const { data: cotacoes } = useCotacoes(item.id);
   const selectedCotacao = cotacoes?.find((c: any) => c.selecionado);
   const valorSelecionado = selectedCotacao ? selectedCotacao.valor_unitario * item.quantidade : null;
+  const numCotacoes = cotacoes?.length || 0;
 
   return (
     <TableRow>
@@ -198,22 +199,23 @@ const ItemRowWithCotacao = ({ item, total, despesa, selected, onToggleSelect, on
       <TableCell className="font-medium">{item.descricao}</TableCell>
       <TableCell>{item.unidade}</TableCell>
       <TableCell className="font-mono">{item.quantidade}</TableCell>
-      <TableCell>R$ {fmt(item.valor_estimado_unitario)}</TableCell>
-      <TableCell className="font-semibold">R$ {fmt(total)}</TableCell>
-      <TableCell className="font-mono">
+      <TableCell className="whitespace-nowrap">R$ {fmt(item.valor_estimado_unitario)}</TableCell>
+      <TableCell className="font-semibold whitespace-nowrap">R$ {fmt(total)}</TableCell>
+      <TableCell className="font-mono whitespace-nowrap">
         {valorSelecionado != null ? (
           <span className="text-success font-semibold">R$ {fmt(valorSelecionado)}</span>
         ) : (
           <span className="text-muted-foreground">—</span>
         )}
       </TableCell>
+      <TableCell className="text-center font-mono">{numCotacoes}</TableCell>
       <TableCell>
         {despesa ? (
-          <Badge variant="default" className="bg-success text-success-foreground text-xs gap-1">
+          <Badge variant="default" className="bg-success text-success-foreground text-xs gap-1 whitespace-nowrap">
             <CheckCircle2 className="h-3 w-3" />Sim
           </Badge>
         ) : (
-          <Badge variant="outline" className="text-xs gap-1">
+          <Badge variant="outline" className="text-xs gap-1 whitespace-nowrap">
             <Circle className="h-3 w-3" />Não
           </Badge>
         )}
@@ -398,7 +400,7 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
           </form>
         </DialogContent>
       </Dialog>
-      <div className="bg-card rounded-md border">
+      <div className="bg-card rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -409,18 +411,19 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
               <TableHead><SortableHeader label="Descrição" field="descricao" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead className="w-20"><SortableHeader label="Unidade" field="unidade" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead className="w-20"><SortableHeader label="Qtde" field="quantidade" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
-              <TableHead className="w-28"><SortableHeader label="Estimado Unit." field="valor_estimado_unitario" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
-              <TableHead className="w-28">Total Est.</TableHead>
-              <TableHead className="w-28">Valor Selecionado</TableHead>
+              <TableHead className="w-32"><SortableHeader label="Estimado Unit." field="valor_estimado_unitario" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
+              <TableHead className="w-32">Total Est.</TableHead>
+              <TableHead className="w-32">Valor Selecionado</TableHead>
+              <TableHead className="w-20">Cotações</TableHead>
               <TableHead className="w-24">Despesa</TableHead>
               <TableHead className="w-24 text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
             ) : !sorted?.length ? (
-              <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Nenhum item</TableCell></TableRow>
+              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">Nenhum item</TableCell></TableRow>
             ) : (
               <>
                 {sorted.map((item: any) => {
@@ -432,11 +435,11 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
                 })}
                 <TableRow className="bg-muted/30 font-semibold">
                   <TableCell colSpan={6} className="text-right">Total</TableCell>
-                  <TableCell>R$ {fmt(totalEstimado)}</TableCell>
+                  <TableCell className="whitespace-nowrap">R$ {fmt(totalEstimado)}</TableCell>
                   <TableCell>
                     <TotalValorSelecionado itens={sorted} />
                   </TableCell>
-                  <TableCell colSpan={2} />
+                  <TableCell colSpan={3} />
                 </TableRow>
               </>
             )}
@@ -463,12 +466,21 @@ const TotalValorSelecionado = ({ itens }: { itens: any[] }) => {
 const CotacoesView = ({ itemId, obraId, onBack }: { itemId: string; obraId: string; onBack: () => void }) => {
   const { data: cotacoes, isLoading } = useCotacoes(itemId);
   const { data: fornecedores } = useFornecedores();
+  const { data: itemData } = useOrcamentoItens(undefined);
   const createCotacao = useCreateCotacao();
   const updateCotacao = useUpdateCotacao();
   const selectCotacao = useSelectCotacao();
   const deleteCotacao = useDeleteCotacao();
   const createFornecedor = useCreateFornecedor();
   const { toast } = useToast();
+
+  // Fetch the specific item to show its name
+  const [itemInfo, setItemInfo] = useState<{ descricao: string; quantidade: number } | null>(null);
+  useState(() => {
+    supabase.from("orcamento_itens").select("descricao, quantidade").eq("id", itemId).single().then(({ data }) => {
+      if (data) setItemInfo(data);
+    });
+  });
   const [showAdd, setShowAdd] = useState(false);
   const [editingCot, setEditingCot] = useState<any>(null);
   const [fornecedorId, setFornecedorId] = useState("");
@@ -561,7 +573,12 @@ const CotacoesView = ({ itemId, obraId, onBack }: { itemId: string; obraId: stri
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="h-4 w-4 mr-1" />Voltar</Button>
-          <h2 className="text-lg font-semibold">Cotações</h2>
+          <div>
+            <h2 className="text-lg font-semibold">Cotações</h2>
+            {itemInfo && (
+              <p className="text-sm text-muted-foreground">Item: <span className="font-medium text-foreground">{itemInfo.descricao}</span> — Qtde: {itemInfo.quantidade}</p>
+            )}
+          </div>
         </div>
         <Button size="sm" onClick={() => { resetForm(); setShowAdd(true); }}><Plus className="h-4 w-4 mr-1" />Nova Cotação</Button>
       </div>

@@ -230,7 +230,7 @@ const DespesasTab = ({ obraId }: Props) => {
         </Select>
       </DataToolbar>
 
-      <div className="bg-card rounded-md border">
+      <div className="bg-card rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -240,9 +240,9 @@ const DespesasTab = ({ obraId }: Props) => {
               <TableHead><SortableHeader label="Etapa" field="etapas.nome" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead><SortableHeader label="Fornecedor" field="fornecedores.nome" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead className="w-28"><SortableHeader label="Categoria" field="categoria" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
-              <TableHead className="w-28"><SortableHeader label="Previsto" field="valor_previsto" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
-              <TableHead className="w-28"><SortableHeader label="Real" field="valor_real" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
-              <TableHead className="w-24"><SortableHeader label="Vencimento" field="data_vencimento" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
+              <TableHead className="w-32"><SortableHeader label="Previsto" field="valor_previsto" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
+              <TableHead className="w-32"><SortableHeader label="Real" field="valor_real" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
+              <TableHead className="w-28"><SortableHeader label="Vencimento" field="data_vencimento" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead className="w-20"><SortableHeader label="Parcelas" field="parcelas" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead className="w-20"><SortableHeader label="Pago" field="pago" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead className="w-24 text-right">Ações</TableHead>
@@ -258,72 +258,29 @@ const DespesasTab = ({ obraId }: Props) => {
                 {sorted.map((d: any) => {
                   const children = getChildren(d.id);
                   const hasChildren = children.length > 0;
+                  const hasParcelas = (d.parcelas && d.parcelas > 1);
+                  const canExpand = hasChildren || hasParcelas;
                   const isExpanded = expandedRows.has(d.id);
                   return (
-                    <>
-                      <TableRow key={d.id}>
-                        <TableCell className="px-1">
-                          {hasChildren ? (
-                            <button onClick={() => toggleExpand(d.id)} className="p-0.5 hover:bg-muted rounded">
-                              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                            </button>
-                          ) : (d.parcelas && d.parcelas > 1) ? (
-                            <button onClick={() => toggleExpand(d.id)} className="p-0.5 hover:bg-muted rounded opacity-50">
-                              <ChevronRight className="h-4 w-4" />
-                            </button>
-                          ) : null}
-                        </TableCell>
-                        <TableCell>{new Date(d.data).toLocaleDateString("pt-BR")}</TableCell>
-                        <TableCell className="font-medium">{d.descricao}</TableCell>
-                        <TableCell>{d.etapas?.nome || "—"}</TableCell>
-                        <TableCell>{d.fornecedores?.nome || "—"}</TableCell>
-                        <TableCell><Badge variant="outline" className="text-xs">{categoriaLabel[d.categoria]}</Badge></TableCell>
-                        <TableCell>R$ {fmt(d.valor_previsto)}</TableCell>
-                        <TableCell className={d.valor_real > d.valor_previsto ? "text-destructive font-medium" : ""}>
-                          {d.valor_real > 0 ? `R$ ${fmt(d.valor_real)}` : "—"}
-                        </TableCell>
-                        <TableCell>{d.data_vencimento ? new Date(d.data_vencimento).toLocaleDateString("pt-BR") : "—"}</TableCell>
-                        <TableCell className="text-center font-mono">
-                          {hasChildren ? <Badge variant="secondary" className="text-xs">{children.length}x</Badge> : (d.parcelas || 1)}
-                        </TableCell>
-                        <TableCell>
-                          <Switch checked={d.pago} onCheckedChange={() => handleTogglePago(d)} />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(d)}><Pencil className="h-3.5 w-3.5" /></Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteDespesa.mutate({ id: d.id, obra_id: obraId })}>
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                      {isExpanded && children.map((c: any) => (
-                        <TableRow key={c.id} className="bg-muted/20">
-                          <TableCell></TableCell>
-                          <TableCell className="text-muted-foreground text-sm">{new Date(c.data).toLocaleDateString("pt-BR")}</TableCell>
-                          <TableCell className="text-sm pl-6">{c.descricao}</TableCell>
-                          <TableCell className="text-sm">{c.etapas?.nome || "—"}</TableCell>
-                          <TableCell className="text-sm">{c.fornecedores?.nome || "—"}</TableCell>
-                          <TableCell></TableCell>
-                          <TableCell className="text-sm">R$ {fmt(c.valor_previsto)}</TableCell>
-                          <TableCell className="text-sm">R$ {fmt(c.valor_real)}</TableCell>
-                          <TableCell className="text-sm">{c.data_vencimento ? new Date(c.data_vencimento).toLocaleDateString("pt-BR") : "—"}</TableCell>
-                          <TableCell className="text-center text-sm font-mono">{c.parcela_numero || "—"}</TableCell>
-                          <TableCell>
-                            <Switch checked={c.pago} onCheckedChange={() => handleTogglePago(c)} />
-                          </TableCell>
-                          <TableCell></TableCell>
-                        </TableRow>
-                      ))}
-                    </>
+                    <ExpandableRow
+                      key={d.id}
+                      d={d}
+                      children={children}
+                      canExpand={canExpand}
+                      hasChildren={hasChildren}
+                      isExpanded={isExpanded}
+                      onToggleExpand={() => toggleExpand(d.id)}
+                      onTogglePago={handleTogglePago}
+                      onEdit={openEdit}
+                      onDelete={() => deleteDespesa.mutate({ id: d.id, obra_id: obraId })}
+                    />
                   );
                 })}
                 <TableRow className="bg-muted/30 font-semibold">
                   <TableCell />
                   <TableCell colSpan={5} className="text-right">Total</TableCell>
-                  <TableCell>R$ {fmt(totalPrevisto)}</TableCell>
-                  <TableCell>R$ {fmt(totalReal)}</TableCell>
+                  <TableCell className="whitespace-nowrap">R$ {fmt(totalPrevisto)}</TableCell>
+                  <TableCell className="whitespace-nowrap">R$ {fmt(totalReal)}</TableCell>
                   <TableCell colSpan={4} />
                 </TableRow>
               </>
@@ -332,6 +289,90 @@ const DespesasTab = ({ obraId }: Props) => {
         </Table>
       </div>
     </div>
+  );
+};
+
+const ExpandableRow = ({ d, children, canExpand, hasChildren, isExpanded, onToggleExpand, onTogglePago, onEdit, onDelete }: {
+  d: any; children: any[]; canExpand: boolean; hasChildren: boolean; isExpanded: boolean;
+  onToggleExpand: () => void; onTogglePago: (d: any) => void; onEdit: (d: any) => void; onDelete: () => void;
+}) => {
+  // Generate virtual parcelas if parent has parcelas > 1 but no children yet
+  const virtualParcelas = !hasChildren && d.parcelas > 1 ? Array.from({ length: d.parcelas }, (_, i) => {
+    const valorParcela = Math.round(d.valor_real / d.parcelas * 100) / 100;
+    const valorPrevParcela = Math.round(d.valor_previsto / d.parcelas * 100) / 100;
+    const baseDate = d.data_vencimento ? new Date(d.data_vencimento + "T12:00:00") : null;
+    const vencimento = baseDate ? new Date(baseDate) : null;
+    if (vencimento) vencimento.setMonth(vencimento.getMonth() + i);
+    return {
+      id: `virtual-${d.id}-${i}`,
+      parcela_numero: i + 1,
+      descricao: `${d.descricao} (${i + 1}/${d.parcelas})`,
+      data: d.data,
+      valor_previsto: valorPrevParcela,
+      valor_real: valorParcela,
+      data_vencimento: vencimento ? vencimento.toISOString().split("T")[0] : null,
+      pago: false,
+      virtual: true,
+    };
+  }) : [];
+
+  const expandedItems = hasChildren ? children : virtualParcelas;
+
+  return (
+    <>
+      <TableRow>
+        <TableCell className="px-1">
+          {canExpand ? (
+            <button onClick={onToggleExpand} className="p-0.5 hover:bg-muted rounded">
+              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            </button>
+          ) : null}
+        </TableCell>
+        <TableCell className="whitespace-nowrap">{new Date(d.data).toLocaleDateString("pt-BR")}</TableCell>
+        <TableCell className="font-medium">{d.descricao}</TableCell>
+        <TableCell>{d.etapas?.nome || "—"}</TableCell>
+        <TableCell>{d.fornecedores?.nome || "—"}</TableCell>
+        <TableCell><Badge variant="outline" className="text-xs whitespace-nowrap">{categoriaLabel[d.categoria]}</Badge></TableCell>
+        <TableCell className="whitespace-nowrap">R$ {fmt(d.valor_previsto)}</TableCell>
+        <TableCell className={`whitespace-nowrap ${d.valor_real > d.valor_previsto ? "text-destructive font-medium" : ""}`}>
+          {d.valor_real > 0 ? `R$ ${fmt(d.valor_real)}` : "—"}
+        </TableCell>
+        <TableCell className="whitespace-nowrap">{d.data_vencimento ? new Date(d.data_vencimento).toLocaleDateString("pt-BR") : "—"}</TableCell>
+        <TableCell className="text-center font-mono">
+          {canExpand ? <Badge variant="secondary" className="text-xs cursor-pointer" onClick={onToggleExpand}>{d.parcelas || children.length}x</Badge> : (d.parcelas || 1)}
+        </TableCell>
+        <TableCell>
+          <Switch checked={d.pago} onCheckedChange={() => onTogglePago(d)} />
+        </TableCell>
+        <TableCell className="text-right">
+          <div className="flex justify-end gap-1">
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(d)}><Pencil className="h-3.5 w-3.5" /></Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={onDelete}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </TableCell>
+      </TableRow>
+      {isExpanded && expandedItems.map((c: any) => (
+        <TableRow key={c.id} className="bg-muted/20">
+          <TableCell></TableCell>
+          <TableCell className="text-muted-foreground text-sm whitespace-nowrap">{new Date(c.data).toLocaleDateString("pt-BR")}</TableCell>
+          <TableCell className="text-sm pl-6">{c.descricao}</TableCell>
+          <TableCell className="text-sm">{c.etapas?.nome || "—"}</TableCell>
+          <TableCell className="text-sm">{c.fornecedores?.nome || "—"}</TableCell>
+          <TableCell></TableCell>
+          <TableCell className="text-sm whitespace-nowrap">R$ {fmt(c.valor_previsto)}</TableCell>
+          <TableCell className="text-sm whitespace-nowrap">R$ {fmt(c.valor_real)}</TableCell>
+          <TableCell className="text-sm whitespace-nowrap">{c.data_vencimento ? new Date(c.data_vencimento).toLocaleDateString("pt-BR") : "—"}</TableCell>
+          <TableCell className="text-center text-sm font-mono">{c.parcela_numero || "—"}</TableCell>
+          <TableCell>
+            {!c.virtual && <Switch checked={c.pago} onCheckedChange={() => onTogglePago(c)} />}
+            {c.virtual && <span className="text-xs text-muted-foreground">—</span>}
+          </TableCell>
+          <TableCell></TableCell>
+        </TableRow>
+      ))}
+    </>
   );
 };
 

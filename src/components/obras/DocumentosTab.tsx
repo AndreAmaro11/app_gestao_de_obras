@@ -1,11 +1,14 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usePastas, useCreatePasta, useDeletePasta, useDocumentos, useUploadDocumento, useDeleteDocumento, useDownloadDocumento } from "@/hooks/useDocumentos";
 import { useToast } from "@/hooks/use-toast";
-import { Folder, FolderPlus, ArrowLeft, Upload, Download, Trash2, FileText, Grid, List, LayoutGrid, Image as ImageIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Folder, FolderPlus, ArrowLeft, Upload, Download, Trash2, FileText, Grid, List, LayoutGrid, Image as ImageIcon, Eye, ExternalLink, Pencil } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface Props {
   obraId: string;
@@ -15,11 +18,26 @@ type ViewMode = "list" | "small" | "medium" | "large";
 
 const isImage = (tipo: string | null) => tipo?.startsWith("image/");
 
+const useRenameDocumento = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, obraId, nome }: { id: string; obraId: string; nome: string }) => {
+      const { error } = await supabase.from("documentos").update({ nome }).eq("id", id);
+      if (error) throw error;
+      return obraId;
+    },
+    onSuccess: (obraId) => qc.invalidateQueries({ queryKey: ["documentos", obraId] }),
+  });
+};
+
 const DocumentosTab = ({ obraId }: Props) => {
   const [pastaAtual, setPastaAtual] = useState<string | null>(null);
   const [breadcrumbs, setBreadcrumbs] = useState<{ id: string | null; nome: string }[]>([{ id: null, nome: "Raiz" }]);
   const [novaPasta, setNovaPasta] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; nome: string; tipo: string | null } | null>(null);
+  const [renameDoc, setRenameDoc] = useState<{ id: string; nome: string } | null>(null);
+  const [renameValue, setRenameValue] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -30,6 +48,7 @@ const DocumentosTab = ({ obraId }: Props) => {
   const uploadDoc = useUploadDocumento();
   const deleteDoc = useDeleteDocumento();
   const downloadDoc = useDownloadDocumento();
+  const renameDocMut = useRenameDocumento();
 
   const navegarPasta = (id: string, nome: string) => {
     setPastaAtual(id);
@@ -72,15 +91,31 @@ const DocumentosTab = ({ obraId }: Props) => {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const getPublicUrl = (url: string) => {
-    const { data } = supabase.storage.from("obra-documentos").getPublicUrl(url);
-    return data.publicUrl;
+  const openFile = async (url: string, nome: string, tipo: string | null, inNewTab: boolean) => {
+    const { data, error } = await supabase.storage.from("obra-documentos").createSignedUrl(url, 3600);
+    if (error || !data?.signedUrl) {
+      toast({ title: "Erro ao abrir arquivo", variant: "destructive" });
+      return;
+    }
+    if (inNewTab) {
+      window.open(data.signedUrl, "_blank");
+    } else {
+      setPreviewDoc({ url: data.signedUrl, nome, tipo });
+    }
   };
 
-  const getSignedUrl = (url: string) => {
-    // For private buckets, we need a signed URL
-    return supabase.storage.from("obra-documentos").createSignedUrl(url, 3600);
+  const handleRename = async () => {
+    if (!renameDoc || !renameValue.trim()) return;
+    try {
+      await renameDocMut.mutateAsync({ id: renameDoc.id, obraId, nome: renameValue.trim() });
+      setRenameDoc(null);
+      toast({ title: "Arquivo renomeado" });
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    }
   };
+
+  const getSignedUrl = (url: string) => supabase.storage.from("obra-documentos").createSignedUrl(url, 3600);
 
   const viewModes: { mode: ViewMode; icon: React.ReactNode; label: string }[] = [
     { mode: "list", icon: <List className="h-4 w-4" />, label: "Lista" },
@@ -94,6 +129,45 @@ const DocumentosTab = ({ obraId }: Props) => {
 
   return (
     <div className="space-y-4">
+      {/* Preview Dialog */}
+      <Dialog open={!!previewDoc} onOpenChange={(v) => { if (!v) setPreviewDoc(null); }}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader><DialogTitle>{previewDoc?.nome}</DialogTitle></DialogHeader>
+          <div className="flex-1 overflow-auto">
+            {previewDoc && isImage(previewDoc.tipo) ? (
+              <img src={previewDoc.url} alt={previewDoc.nome} className="max-w-full max-h-[70vh] mx-auto" />
+            ) : previewDoc?.tipo === "application/pdf" ? (
+              <iframe src={previewDoc.url} className="w-full h-[70vh]" title={previewDoc.nome} />
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                <FileText className="h-16 w-16 mx-auto mb-4" />
+                <p>Visualização não disponível para este tipo de arquivo.</p>
+                <Button className="mt-4" onClick={() => window.open(previewDoc?.url, "_blank")}>
+                  <ExternalLink className="h-4 w-4 mr-2" />Abrir em nova aba
+                </Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename Dialog */}
+      <Dialog open={!!renameDoc} onOpenChange={(v) => { if (!v) setRenameDoc(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Renomear Arquivo</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Novo nome</Label>
+              <Input value={renameValue} onChange={e => setRenameValue(e.target.value)} onKeyDown={e => e.key === "Enter" && handleRename()} />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setRenameDoc(null)}>Cancelar</Button>
+              <Button onClick={handleRename}>Salvar</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Breadcrumbs */}
       <div className="flex items-center gap-1 text-sm text-muted-foreground">
         {breadcrumbs.map((bc, i) => (
@@ -142,7 +216,7 @@ const DocumentosTab = ({ obraId }: Props) => {
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead className="w-24">Tamanho</TableHead>
-                <TableHead className="w-20 text-right">Ações</TableHead>
+                <TableHead className="w-32 text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -170,7 +244,16 @@ const DocumentosTab = ({ obraId }: Props) => {
                   <TableCell className="text-muted-foreground">{formatSize(d.tamanho)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => downloadDoc(d.url, d.nome)}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" title="Visualizar" onClick={() => openFile(d.url, d.nome, d.tipo_arquivo, false)}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" title="Abrir em nova aba" onClick={() => openFile(d.url, d.nome, d.tipo_arquivo, true)}>
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" title="Renomear" onClick={() => { setRenameDoc({ id: d.id, nome: d.nome }); setRenameValue(d.nome); }}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" title="Download" onClick={() => downloadDoc(d.url, d.nome)}>
                         <Download className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteDoc.mutate({ id: d.id, obraId, url: d.url })}>
@@ -198,7 +281,14 @@ const DocumentosTab = ({ obraId }: Props) => {
             </div>
           ))}
           {documentos?.map((d) => (
-            <DocGridItem key={d.id} doc={d} viewMode={viewMode} thumbSize={thumbSize} onDownload={() => downloadDoc(d.url, d.nome)} onDelete={() => deleteDoc.mutate({ id: d.id, obraId, url: d.url })} getSignedUrl={getSignedUrl} />
+            <DocGridItem key={d.id} doc={d} viewMode={viewMode} thumbSize={thumbSize}
+              onOpen={() => openFile(d.url, d.nome, d.tipo_arquivo, false)}
+              onOpenTab={() => openFile(d.url, d.nome, d.tipo_arquivo, true)}
+              onRename={() => { setRenameDoc({ id: d.id, nome: d.nome }); setRenameValue(d.nome); }}
+              onDownload={() => downloadDoc(d.url, d.nome)}
+              onDelete={() => deleteDoc.mutate({ id: d.id, obraId, url: d.url })}
+              getSignedUrl={getSignedUrl}
+            />
           ))}
           {!pastas?.length && !documentos?.length && (
             <div className="col-span-full text-center text-muted-foreground py-8">Pasta vazia</div>
@@ -209,8 +299,9 @@ const DocumentosTab = ({ obraId }: Props) => {
   );
 };
 
-const DocGridItem = ({ doc, viewMode, thumbSize, onDownload, onDelete, getSignedUrl }: {
+const DocGridItem = ({ doc, viewMode, thumbSize, onOpen, onOpenTab, onRename, onDownload, onDelete, getSignedUrl }: {
   doc: any; viewMode: ViewMode; thumbSize: string;
+  onOpen: () => void; onOpenTab: () => void; onRename: () => void;
   onDownload: () => void; onDelete: () => void;
   getSignedUrl: (url: string) => Promise<{ data: { signedUrl: string } | null; error: any }>;
 }) => {
@@ -226,7 +317,7 @@ const DocGridItem = ({ doc, viewMode, thumbSize, onDownload, onDelete, getSigned
   });
 
   return (
-    <div className="group relative flex flex-col items-center bg-card border rounded-md p-2 hover:bg-muted/50 transition-colors">
+    <div className="group relative flex flex-col items-center bg-card border rounded-md p-2 hover:bg-muted/50 transition-colors cursor-pointer" onClick={onOpen}>
       <div className={`${thumbSize} flex items-center justify-center overflow-hidden rounded`}>
         {isImg && signedUrl ? (
           <img src={signedUrl} alt={doc.nome} className="object-cover w-full h-full rounded" />
@@ -236,10 +327,16 @@ const DocGridItem = ({ doc, viewMode, thumbSize, onDownload, onDelete, getSigned
       </div>
       <span className="text-xs text-center mt-1 truncate w-full">{doc.nome}</span>
       <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100">
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onDownload}>
+        <Button variant="ghost" size="icon" className="h-6 w-6" title="Nova aba" onClick={e => { e.stopPropagation(); onOpenTab(); }}>
+          <ExternalLink className="h-3 w-3" />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-6 w-6" title="Renomear" onClick={e => { e.stopPropagation(); onRename(); }}>
+          <Pencil className="h-3 w-3" />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-6 w-6" title="Download" onClick={e => { e.stopPropagation(); onDownload(); }}>
           <Download className="h-3 w-3" />
         </Button>
-        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={onDelete}>
+        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" title="Excluir" onClick={e => { e.stopPropagation(); onDelete(); }}>
           <Trash2 className="h-3 w-3" />
         </Button>
       </div>
