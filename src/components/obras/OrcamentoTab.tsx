@@ -10,7 +10,7 @@ import { Plus, ArrowLeft, Check, ChevronRight, Pencil, Trash2 } from "lucide-rea
 import { useOrcamentos, useCreateOrcamento, useOrcamentoItens, useCreateOrcamentoItem, useUpdateOrcamentoItem, useDeleteOrcamentoItem, useCotacoes, useCreateCotacao, useUpdateCotacao, useSelectCotacao, useAprovarOrcamento } from "@/hooks/useOrcamentos";
 import { useEtapas } from "@/hooks/useEtapas";
 import { useSubetapas } from "@/hooks/useSubetapas";
-import { useFornecedores } from "@/hooks/useFornecedores";
+import { useFornecedores, useCreateFornecedor } from "@/hooks/useFornecedores";
 import { useToast } from "@/hooks/use-toast";
 
 interface Props { obraId: string; }
@@ -235,13 +235,14 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
   );
 };
 
-// Cotacoes sub-view
+// Cotacoes sub-view with inline fornecedor creation
 const CotacoesView = ({ itemId, obraId, onBack }: { itemId: string; obraId: string; onBack: () => void }) => {
   const { data: cotacoes, isLoading } = useCotacoes(itemId);
   const { data: fornecedores } = useFornecedores();
   const createCotacao = useCreateCotacao();
   const updateCotacao = useUpdateCotacao();
   const selectCotacao = useSelectCotacao();
+  const createFornecedor = useCreateFornecedor();
   const { toast } = useToast();
   const [showAdd, setShowAdd] = useState(false);
   const [editingCot, setEditingCot] = useState<any>(null);
@@ -249,6 +250,12 @@ const CotacoesView = ({ itemId, obraId, onBack }: { itemId: string; obraId: stri
   const [valorUnit, setValorUnit] = useState("");
   const [prazo, setPrazo] = useState("");
   const [observacao, setObservacao] = useState("");
+
+  // Inline fornecedor creation
+  const [showNewFornecedor, setShowNewFornecedor] = useState(false);
+  const [newFornNome, setNewFornNome] = useState("");
+  const [newFornTipo, setNewFornTipo] = useState("misto");
+  const [newFornTelefone, setNewFornTelefone] = useState("");
 
   const menorValor = cotacoes?.length ? Math.min(...cotacoes.map(c => c.valor_unitario)) : 0;
 
@@ -289,6 +296,21 @@ const CotacoesView = ({ itemId, obraId, onBack }: { itemId: string; obraId: stri
     } catch (err: any) { toast({ title: "Erro", description: err.message, variant: "destructive" }); }
   };
 
+  const handleCreateFornecedor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const created = await createFornecedor.mutateAsync({
+        nome: newFornNome,
+        tipo: newFornTipo as any,
+        telefone: newFornTelefone || null,
+      });
+      setFornecedorId(created.id);
+      setShowNewFornecedor(false);
+      setNewFornNome(""); setNewFornTipo("misto"); setNewFornTelefone("");
+      toast({ title: "Fornecedor criado!" });
+    } catch (err: any) { toast({ title: "Erro", description: err.message, variant: "destructive" }); }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -298,16 +320,52 @@ const CotacoesView = ({ itemId, obraId, onBack }: { itemId: string; obraId: stri
         </div>
         <Button size="sm" onClick={() => { resetForm(); setShowAdd(true); }}><Plus className="h-4 w-4 mr-1" />Nova Cotação</Button>
       </div>
+
+      {/* Dialog novo fornecedor inline */}
+      <Dialog open={showNewFornecedor} onOpenChange={setShowNewFornecedor}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Cadastro Rápido de Fornecedor</DialogTitle></DialogHeader>
+          <form onSubmit={handleCreateFornecedor} className="space-y-4">
+            <div className="space-y-2"><Label>Nome</Label><Input value={newFornNome} onChange={e => setNewFornNome(e.target.value)} required /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Tipo</Label>
+                <Select value={newFornTipo} onValueChange={setNewFornTipo}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="material">Material</SelectItem>
+                    <SelectItem value="mao_de_obra">Mão de Obra</SelectItem>
+                    <SelectItem value="misto">Misto</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2"><Label>Telefone</Label><Input value={newFornTelefone} onChange={e => setNewFornTelefone(e.target.value)} /></div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setShowNewFornecedor(false)}>Cancelar</Button>
+              <Button type="submit">Criar</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={showAdd} onOpenChange={(v) => { setShowAdd(v); if (!v) resetForm(); }}>
         <DialogContent>
           <DialogHeader><DialogTitle>{editingCot ? "Editar Cotação" : "Nova Cotação"}</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label>Fornecedor</Label>
-              <Select value={fornecedorId} onValueChange={setFornecedorId}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>{fornecedores?.map(f => <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}</SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Select value={fornecedorId} onValueChange={setFornecedorId}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>{fornecedores?.map(f => <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <Button type="button" variant="outline" size="icon" onClick={() => setShowNewFornecedor(true)} title="Cadastrar fornecedor">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Valor Unitário</Label><Input type="number" step="0.01" value={valorUnit} onChange={e => setValorUnit(e.target.value)} required /></div>

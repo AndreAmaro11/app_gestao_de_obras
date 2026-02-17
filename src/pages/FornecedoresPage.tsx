@@ -7,11 +7,53 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, X } from "lucide-react";
 import { useFornecedores, useCreateFornecedor, useUpdateFornecedor, useDeleteFornecedor } from "@/hooks/useFornecedores";
 import { useToast } from "@/hooks/use-toast";
 
 const tipoLabel: Record<string, string> = { material: "Material", mao_de_obra: "Mão de Obra", misto: "Misto" };
+
+const TagsInput = ({ value, onChange }: { value: string[]; onChange: (tags: string[]) => void }) => {
+  const [input, setInput] = useState("");
+
+  const addTag = (tag: string) => {
+    const trimmed = tag.trim();
+    if (trimmed && !value.includes(trimmed)) {
+      onChange([...value, trimmed]);
+    }
+    setInput("");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addTag(input);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label>Tags</Label>
+      <div className="flex flex-wrap gap-1 mb-1">
+        {value.map((tag) => (
+          <Badge key={tag} variant="secondary" className="text-xs gap-1">
+            {tag}
+            <button type="button" onClick={() => onChange(value.filter(t => t !== tag))} className="ml-0.5 hover:text-destructive">
+              <X className="h-3 w-3" />
+            </button>
+          </Badge>
+        ))}
+      </div>
+      <Input
+        value={input}
+        onChange={e => setInput(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onBlur={() => { if (input.trim()) addTag(input); }}
+        placeholder="Digite e pressione Enter"
+      />
+    </div>
+  );
+};
 
 const FornecedoresPage = () => {
   const { data: fornecedores, isLoading } = useFornecedores();
@@ -27,12 +69,14 @@ const FornecedoresPage = () => {
   const [telefone, setTelefone] = useState("");
   const [email, setEmail] = useState("");
   const [tipo, setTipo] = useState<string>("misto");
+  const [tags, setTags] = useState<string[]>([]);
 
-  const resetForm = () => { setNome(""); setCnpj(""); setTelefone(""); setEmail(""); setTipo("misto"); setEditing(null); };
+  const resetForm = () => { setNome(""); setCnpj(""); setTelefone(""); setEmail(""); setTipo("misto"); setTags([]); setEditing(null); };
 
   const openEdit = (f: any) => {
     setEditing(f);
     setNome(f.nome); setCnpj(f.cnpj || ""); setTelefone(f.telefone || ""); setEmail(f.email || ""); setTipo(f.tipo);
+    setTags(f.tags || []);
     setOpen(true);
   };
 
@@ -40,9 +84,9 @@ const FornecedoresPage = () => {
     e.preventDefault();
     try {
       if (editing) {
-        await updateFornecedor.mutateAsync({ id: editing.id, nome, cnpj: cnpj || null, telefone: telefone || null, email: email || null, tipo: tipo as any });
+        await updateFornecedor.mutateAsync({ id: editing.id, nome, cnpj: cnpj || null, telefone: telefone || null, email: email || null, tipo: tipo as any, tags });
       } else {
-        await createFornecedor.mutateAsync({ nome, cnpj: cnpj || null, telefone: telefone || null, email: email || null, tipo: tipo as any });
+        await createFornecedor.mutateAsync({ nome, cnpj: cnpj || null, telefone: telefone || null, email: email || null, tipo: tipo as any, tags });
       }
       toast({ title: editing ? "Fornecedor atualizado" : "Fornecedor criado" });
       setOpen(false); resetForm();
@@ -102,6 +146,7 @@ const FornecedoresPage = () => {
                   <Input type="email" value={email} onChange={e => setEmail(e.target.value)} />
                 </div>
               </div>
+              <TagsInput value={tags} onChange={setTags} />
               <div className="flex justify-end gap-2 pt-2">
                 <Button type="button" variant="outline" onClick={() => { setOpen(false); resetForm(); }}>Cancelar</Button>
                 <Button type="submit">{editing ? "Salvar" : "Criar"}</Button>
@@ -119,14 +164,15 @@ const FornecedoresPage = () => {
               <TableHead className="w-32">Telefone</TableHead>
               <TableHead className="w-44">E-mail</TableHead>
               <TableHead className="w-28">Tipo</TableHead>
+              <TableHead>Tags</TableHead>
               <TableHead className="w-24 text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
             ) : !fornecedores?.length ? (
-              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhum fornecedor cadastrado</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhum fornecedor cadastrado</TableCell></TableRow>
             ) : (
               fornecedores.map((f) => (
                 <TableRow key={f.id}>
@@ -135,6 +181,13 @@ const FornecedoresPage = () => {
                   <TableCell className="text-sm">{f.telefone || "—"}</TableCell>
                   <TableCell className="text-sm">{f.email || "—"}</TableCell>
                   <TableCell><Badge variant="outline" className="text-xs">{tipoLabel[f.tipo]}</Badge></TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {((f as any).tags || []).map((tag: string) => (
+                        <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
+                      ))}
+                    </div>
+                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(f)}><Pencil className="h-3.5 w-3.5" /></Button>

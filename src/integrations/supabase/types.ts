@@ -103,7 +103,9 @@ export type Database = {
       despesas: {
         Row: {
           categoria: Database["public"]["Enums"]["categoria_despesa"]
+          condicao_pagamento: string | null
           data: string
+          data_vencimento: string | null
           deleted_at: string | null
           descricao: string
           etapa_id: string | null
@@ -112,13 +114,16 @@ export type Database = {
           obra_id: string
           origem: Database["public"]["Enums"]["origem_despesa"]
           pago: boolean
+          parcelas: number | null
           subetapa_id: string | null
           valor_previsto: number
           valor_real: number
         }
         Insert: {
           categoria?: Database["public"]["Enums"]["categoria_despesa"]
+          condicao_pagamento?: string | null
           data?: string
+          data_vencimento?: string | null
           deleted_at?: string | null
           descricao: string
           etapa_id?: string | null
@@ -127,13 +132,16 @@ export type Database = {
           obra_id: string
           origem?: Database["public"]["Enums"]["origem_despesa"]
           pago?: boolean
+          parcelas?: number | null
           subetapa_id?: string | null
           valor_previsto?: number
           valor_real?: number
         }
         Update: {
           categoria?: Database["public"]["Enums"]["categoria_despesa"]
+          condicao_pagamento?: string | null
           data?: string
+          data_vencimento?: string | null
           deleted_at?: string | null
           descricao?: string
           etapa_id?: string | null
@@ -142,6 +150,7 @@ export type Database = {
           obra_id?: string
           origem?: Database["public"]["Enums"]["origem_despesa"]
           pago?: boolean
+          parcelas?: number | null
           subetapa_id?: string | null
           valor_previsto?: number
           valor_real?: number
@@ -237,6 +246,7 @@ export type Database = {
           email: string | null
           id: string
           nome: string
+          tags: string[] | null
           telefone: string | null
           tipo: Database["public"]["Enums"]["tipo_fornecedor"]
           user_id: string
@@ -247,6 +257,7 @@ export type Database = {
           email?: string | null
           id?: string
           nome: string
+          tags?: string[] | null
           telefone?: string | null
           tipo?: Database["public"]["Enums"]["tipo_fornecedor"]
           user_id: string
@@ -257,6 +268,7 @@ export type Database = {
           email?: string | null
           id?: string
           nome?: string
+          tags?: string[] | null
           telefone?: string | null
           tipo?: Database["public"]["Enums"]["tipo_fornecedor"]
           user_id?: string
