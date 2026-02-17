@@ -54,6 +54,7 @@ export type Database = {
       }
       cotacoes: {
         Row: {
+          arquivo_url: string | null
           deleted_at: string | null
           fornecedor_id: string | null
           id: string
@@ -64,6 +65,7 @@ export type Database = {
           valor_unitario: number
         }
         Insert: {
+          arquivo_url?: string | null
           deleted_at?: string | null
           fornecedor_id?: string | null
           id?: string
@@ -74,6 +76,7 @@ export type Database = {
           valor_unitario?: number
         }
         Update: {
+          arquivo_url?: string | null
           deleted_at?: string | null
           fornecedor_id?: string | null
           id?: string
@@ -295,9 +298,12 @@ export type Database = {
           cnpj: string | null
           deleted_at: string | null
           email: string | null
+          endereco: string | null
           etapa_id: string | null
           id: string
           nome: string
+          nome_fantasia: string | null
+          observacao: string | null
           subetapa_id: string | null
           tags: string[] | null
           telefone: string | null
@@ -308,9 +314,12 @@ export type Database = {
           cnpj?: string | null
           deleted_at?: string | null
           email?: string | null
+          endereco?: string | null
           etapa_id?: string | null
           id?: string
           nome: string
+          nome_fantasia?: string | null
+          observacao?: string | null
           subetapa_id?: string | null
           tags?: string[] | null
           telefone?: string | null
@@ -321,9 +330,12 @@ export type Database = {
           cnpj?: string | null
           deleted_at?: string | null
           email?: string | null
+          endereco?: string | null
           etapa_id?: string | null
           id?: string
           nome?: string
+          nome_fantasia?: string | null
+          observacao?: string | null
           subetapa_id?: string | null
           tags?: string[] | null
           telefone?: string | null
