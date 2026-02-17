@@ -1,24 +1,64 @@
+import { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
+import { useChecklistByObra, useCreateChecklistItem, useToggleChecklist, useDeleteChecklistItem } from "@/hooks/useChecklist";
+import { useEtapas } from "@/hooks/useEtapas";
+import { useToast } from "@/hooks/use-toast";
 
-const mockChecklist = [
-  { id: "1", etapa: "Fundação", item: "Verificar nivelamento do terreno", concluido: true, observacao: "OK — Verificado em 05/03" },
-  { id: "2", etapa: "Fundação", item: "Teste de compactação do solo", concluido: true, observacao: "" },
-  { id: "3", etapa: "Fundação", item: "Conferir armação das sapatas", concluido: true, observacao: "Aprovado pelo engenheiro" },
-  { id: "4", etapa: "Estrutura", item: "Verificar prumo dos pilares", concluido: false, observacao: "" },
-  { id: "5", etapa: "Estrutura", item: "Conferir escoramento das lajes", concluido: false, observacao: "" },
-  { id: "6", etapa: "Estrutura", item: "Teste de estanqueidade", concluido: false, observacao: "" },
-];
+interface Props { obraId: string; }
 
-const ChecklistTab = () => {
+const ChecklistTab = ({ obraId }: Props) => {
+  const { data: checklist, isLoading } = useChecklistByObra(obraId);
+  const { data: etapas } = useEtapas(obraId);
+  const createItem = useCreateChecklistItem();
+  const toggleItem = useToggleChecklist();
+  const deleteItem = useDeleteChecklistItem();
+  const { toast } = useToast();
+
+  const [showAdd, setShowAdd] = useState(false);
+  const [item, setItem] = useState("");
+  const [etapaId, setEtapaId] = useState("");
+  const [observacao, setObservacao] = useState("");
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!etapaId) { toast({ title: "Selecione uma etapa", variant: "destructive" }); return; }
+    try {
+      await createItem.mutateAsync({ etapa_id: etapaId, item, observacao: observacao || null, obra_id: obraId });
+      setShowAdd(false); setItem(""); setEtapaId(""); setObservacao("");
+    } catch (err: any) { toast({ title: "Erro", description: err.message, variant: "destructive" }); }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-semibold">Checklist</h2>
-        <Button size="sm"><Plus className="h-4 w-4 mr-1" />Novo Item</Button>
+        <Button size="sm" onClick={() => setShowAdd(true)}><Plus className="h-4 w-4 mr-1" />Novo Item</Button>
       </div>
+
+      <Dialog open={showAdd} onOpenChange={setShowAdd}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Novo Item do Checklist</DialogTitle></DialogHeader>
+          <form onSubmit={handleAdd} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Etapa</Label>
+              <Select value={etapaId} onValueChange={setEtapaId}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>{etapas?.map(et => <SelectItem key={et.id} value={et.id}>{et.nome}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2"><Label>Item</Label><Input value={item} onChange={e => setItem(e.target.value)} required /></div>
+            <div className="space-y-2"><Label>Observação</Label><Input value={observacao} onChange={e => setObservacao(e.target.value)} /></div>
+            <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setShowAdd(false)}>Cancelar</Button><Button type="submit">Criar</Button></div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <div className="bg-card rounded-md border">
         <Table>
@@ -32,24 +72,27 @@ const ChecklistTab = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {mockChecklist.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell className="text-muted-foreground">{item.etapa}</TableCell>
-                <TableCell className={`font-medium ${item.concluido ? "line-through text-muted-foreground" : ""}`}>
-                  {item.item}
-                </TableCell>
-                <TableCell className="text-center">
-                  <Checkbox checked={item.concluido} />
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">{item.observacao || "—"}</TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-1">
-                    <Button variant="ghost" size="icon" className="h-7 w-7"><Pencil className="h-3.5 w-3.5" /></Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
+            {isLoading ? (
+              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
+            ) : !checklist?.length ? (
+              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum item no checklist</TableCell></TableRow>
+            ) : (
+              checklist.map((c) => (
+                <TableRow key={c.id}>
+                  <TableCell className="text-muted-foreground">{(c.etapas as any)?.nome || "—"}</TableCell>
+                  <TableCell className={`font-medium ${c.concluido ? "line-through text-muted-foreground" : ""}`}>{c.item}</TableCell>
+                  <TableCell className="text-center">
+                    <Checkbox checked={c.concluido} onCheckedChange={(checked) => toggleItem.mutate({ id: c.id, concluido: !!checked })} />
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{c.observacao || "—"}</TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteItem.mutate(c.id)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
