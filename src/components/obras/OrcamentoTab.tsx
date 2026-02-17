@@ -112,7 +112,7 @@ const OrcamentoTab = ({ obraId }: Props) => {
 };
 
 // Items sub-view
-const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectItem, onAprovar }: { orcamentoId: string; obraId: string; orcNome: string; orcStatus: string; onBack: () => void; onSelectItem: (id: string) => void; onAprovar: () => void }) => {
+const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectItem, onAprovar }: { orcamentoId: string; obraId: string; orcNome: string; orcStatus: string; onBack: () => void; onSelectItem: (id: string) => void; onAprovar: () => Promise<void> }) => {
   const { data: itens, isLoading } = useOrcamentoItens(orcamentoId);
   const { data: etapas } = useEtapas(obraId);
   const createItem = useCreateOrcamentoItem();
@@ -171,7 +171,7 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={() => { resetForm(); setShowAdd(true); }}><Plus className="h-4 w-4 mr-1" />Novo Item</Button>
-          {orcStatus !== "aprovado" && <Button size="sm" onClick={onAprovar}>Aprovar Orçamento</Button>}
+          <Button size="sm" onClick={onAprovar}>{orcStatus === "aprovado" ? "Re-gerar Despesas" : "Aprovar Orçamento"}</Button>
         </div>
       </div>
       <Dialog open={showAdd} onOpenChange={(v) => { setShowAdd(v); if (!v) resetForm(); }}>

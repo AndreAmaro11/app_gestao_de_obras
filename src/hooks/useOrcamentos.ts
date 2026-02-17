@@ -165,38 +165,41 @@ export const useAprovarOrcamento = () => {
   return useMutation({
     mutationFn: async ({ orcamentoId, obraId }: { orcamentoId: string; obraId: string }) => {
       // Update orcamento status
-      await supabase.from("orcamentos").update({ status: "aprovado" }).eq("id", orcamentoId);
+      const { error: statusError } = await supabase.from("orcamentos").update({ status: "aprovado" }).eq("id", orcamentoId);
+      if (statusError) throw statusError;
       
       // Get items with selected cotacoes
-      const { data: itens } = await supabase
+      const { data: itens, error: itensError } = await supabase
         .from("orcamento_itens")
         .select("*, cotacoes(*)")
         .eq("orcamento_id", orcamentoId)
         .is("deleted_at", null);
 
-      if (itens) {
-        const despesas = itens
-          .map((item) => {
-            const selected = (item.cotacoes as any[])?.find((c: any) => c.selecionado && !c.deleted_at);
-            if (!selected) return null;
-            return {
-              obra_id: obraId,
-              etapa_id: item.etapa_id,
-              subetapa_id: item.subetapa_id || null,
-              fornecedor_id: selected.fornecedor_id,
-              descricao: item.descricao,
-              categoria: "material" as const,
-              valor_previsto: selected.valor_unitario * item.quantidade,
-              valor_real: 0,
-              pago: false,
-              origem: "orcamento" as const,
-            };
-          })
-          .filter(Boolean);
+      if (itensError) throw itensError;
+      if (!itens || itens.length === 0) return;
 
-        if (despesas.length > 0) {
-          await supabase.from("despesas").insert(despesas as any[]);
-        }
+      const despesas = itens
+        .map((item) => {
+          const selected = (item.cotacoes as any[])?.find((c: any) => c.selecionado && !c.deleted_at);
+          if (!selected) return null;
+          return {
+            obra_id: obraId,
+            etapa_id: item.etapa_id,
+            subetapa_id: item.subetapa_id || null,
+            fornecedor_id: selected.fornecedor_id,
+            descricao: item.descricao,
+            categoria: "material" as const,
+            valor_previsto: selected.valor_unitario * item.quantidade,
+            valor_real: 0,
+            pago: false,
+            origem: "orcamento" as const,
+          };
+        })
+        .filter(Boolean);
+
+      if (despesas.length > 0) {
+        const { error: despError } = await supabase.from("despesas").insert(despesas as any[]);
+        if (despError) throw despError;
       }
     },
     onSuccess: (_, v) => {
