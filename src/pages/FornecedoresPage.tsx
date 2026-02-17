@@ -14,6 +14,7 @@ import { useObras } from "@/hooks/useObras";
 import { useEtapas } from "@/hooks/useEtapas";
 import { useSubetapas } from "@/hooks/useSubetapas";
 import { useToast } from "@/hooks/use-toast";
+import { DataToolbar, SortableHeader, useSort, useSearch } from "@/components/DataToolbar";
 
 const tipoLabel: Record<string, string> = { material: "Material", mao_de_obra: "Mão de Obra", misto: "Misto" };
 
@@ -65,9 +66,15 @@ const FornecedoresPage = () => {
   const [obraId, setObraId] = useState<string>("");
   const [etapaId, setEtapaId] = useState<string>("");
   const [subetapaId, setSubetapaId] = useState<string>("");
+  const [filtroTipo, setFiltroTipo] = useState("todos");
 
   const { data: etapas } = useEtapas(obraId || undefined);
   const { data: subetapas } = useSubetapas(etapaId || undefined);
+
+  // Search + Sort
+  const { search, setSearch, filtered: searched } = useSearch(fornecedores, ["nome", "nome_fantasia", "cnpj", "email", "telefone"]);
+  const afterFilter = searched.filter((f: any) => filtroTipo === "todos" || f.tipo === filtroTipo);
+  const { sorted, sortField, sortDir, toggleSort } = useSort(afterFilter, "nome");
 
   const resetForm = () => {
     setNome(""); setNomeFantasia(""); setCnpj(""); setTelefone(""); setEmail(""); setEndereco(""); setObs(""); setTipo("misto"); setTags([]);
@@ -94,23 +101,16 @@ const FornecedoresPage = () => {
         observacao: obs || null, tipo: tipo as any, tags,
         etapa_id: etapaId || null, subetapa_id: subetapaId || null,
       };
-      if (editing) {
-        await updateFornecedor.mutateAsync({ id: editing.id, ...payload });
-      } else {
-        await createFornecedor.mutateAsync(payload);
-      }
+      if (editing) await updateFornecedor.mutateAsync({ id: editing.id, ...payload });
+      else await createFornecedor.mutateAsync(payload);
       toast({ title: editing ? "Fornecedor atualizado" : "Fornecedor criado" });
       setOpen(false); resetForm();
-    } catch (error: any) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
-    }
+    } catch (error: any) { toast({ title: "Erro", description: error.message, variant: "destructive" }); }
   };
 
   const handleDelete = async (id: string) => {
-    try {
-      await deleteFornecedor.mutateAsync(id);
-      toast({ title: "Fornecedor excluído" });
-    } catch (error: any) { toast({ title: "Erro", description: error.message, variant: "destructive" }); }
+    try { await deleteFornecedor.mutateAsync(id); toast({ title: "Fornecedor excluído" }); }
+    catch (error: any) { toast({ title: "Erro", description: error.message, variant: "destructive" }); }
   };
 
   return (
@@ -148,8 +148,6 @@ const FornecedoresPage = () => {
               </div>
               <div className="space-y-2"><Label>Endereço</Label><Input value={endereco} onChange={e => setEndereco(e.target.value)} /></div>
               <div className="space-y-2"><Label>Observação</Label><Textarea value={obs} onChange={e => setObs(e.target.value)} rows={2} /></div>
-
-              {/* Associação */}
               <div className="space-y-2">
                 <Label className="text-muted-foreground text-xs uppercase tracking-wide">Associação (opcional)</Label>
                 <div className="grid grid-cols-3 gap-3">
@@ -176,7 +174,6 @@ const FornecedoresPage = () => {
                   </div>
                 </div>
               </div>
-
               <TagsInput value={tags} onChange={setTags} />
               <div className="flex justify-end gap-2 pt-2">
                 <Button type="button" variant="outline" onClick={() => { setOpen(false); resetForm(); }}>Cancelar</Button>
@@ -186,16 +183,35 @@ const FornecedoresPage = () => {
           </DialogContent>
         </Dialog>
       </div>
+
+      <div className="mb-4">
+        <DataToolbar
+          searchPlaceholder="Buscar fornecedor..."
+          searchValue={search}
+          onSearchChange={setSearch}
+        >
+          <Select value={filtroTipo} onValueChange={setFiltroTipo}>
+            <SelectTrigger className="w-36 h-9"><SelectValue placeholder="Tipo" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              <SelectItem value="material">Material</SelectItem>
+              <SelectItem value="mao_de_obra">Mão de Obra</SelectItem>
+              <SelectItem value="misto">Misto</SelectItem>
+            </SelectContent>
+          </Select>
+        </DataToolbar>
+      </div>
+
       <div className="bg-card rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Razão Social</TableHead>
-              <TableHead>Nome Fantasia</TableHead>
+              <TableHead><SortableHeader label="Razão Social" field="nome" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
+              <TableHead><SortableHeader label="Nome Fantasia" field="nome_fantasia" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead className="w-36">CNPJ/CPF</TableHead>
-              <TableHead className="w-32">Telefone</TableHead>
+              <TableHead className="w-32"><SortableHeader label="Telefone" field="telefone" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead className="w-44">E-mail</TableHead>
-              <TableHead className="w-28">Tipo</TableHead>
+              <TableHead className="w-28"><SortableHeader label="Tipo" field="tipo" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead>Etapa</TableHead>
               <TableHead>Tags</TableHead>
               <TableHead className="w-24 text-right">Ações</TableHead>
@@ -204,10 +220,10 @@ const FornecedoresPage = () => {
           <TableBody>
             {isLoading ? (
               <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
-            ) : !fornecedores?.length ? (
-              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum fornecedor cadastrado</TableCell></TableRow>
+            ) : !sorted.length ? (
+              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">{search ? "Nenhum resultado" : "Nenhum fornecedor cadastrado"}</TableCell></TableRow>
             ) : (
-              fornecedores.map((f: any) => (
+              sorted.map((f: any) => (
                 <TableRow key={f.id}>
                   <TableCell className="font-medium">{f.nome}</TableCell>
                   <TableCell className="text-sm">{f.nome_fantasia || "—"}</TableCell>
@@ -221,9 +237,7 @@ const FornecedoresPage = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {(f.tags || []).map((tag: string) => (
-                        <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
-                      ))}
+                      {(f.tags || []).map((tag: string) => <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>)}
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
