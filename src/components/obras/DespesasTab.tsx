@@ -55,10 +55,15 @@ const DespesasTab = ({ obraId }: Props) => {
   const [valorPrev, setValorPrev] = useState("");
   const [valorReal, setValorReal] = useState("");
   const [data, setData] = useState("");
+  const [condicaoPagamento, setCondicaoPagamento] = useState("");
+  const [dataVencimento, setDataVencimento] = useState("");
+  const [parcelas, setParcelas] = useState("1");
 
   const resetForm = () => {
     setDescricao(""); setEtapaId(""); setSubetapaId(""); setFornecedorId("");
-    setCategoria("material"); setValorPrev(""); setValorReal(""); setData(""); setEditing(null);
+    setCategoria("material"); setValorPrev(""); setValorReal(""); setData("");
+    setCondicaoPagamento(""); setDataVencimento(""); setParcelas("1");
+    setEditing(null);
   };
 
   const openEdit = (d: any) => {
@@ -71,6 +76,9 @@ const DespesasTab = ({ obraId }: Props) => {
     setValorPrev(String(d.valor_previsto));
     setValorReal(String(d.valor_real));
     setData(d.data);
+    setCondicaoPagamento(d.condicao_pagamento || "");
+    setDataVencimento(d.data_vencimento || "");
+    setParcelas(String(d.parcelas || 1));
     setShowDialog(true);
   };
 
@@ -92,6 +100,9 @@ const DespesasTab = ({ obraId }: Props) => {
       valor_previsto: Number(valorPrev),
       valor_real: Number(valorReal || 0),
       data: data || new Date().toISOString().split("T")[0],
+      condicao_pagamento: condicaoPagamento || null,
+      data_vencimento: dataVencimento || null,
+      parcelas: Number(parcelas) || 1,
     };
     try {
       if (editing) {
@@ -111,7 +122,7 @@ const DespesasTab = ({ obraId }: Props) => {
       </div>
 
       <Dialog open={showDialog} onOpenChange={(v) => { setShowDialog(v); if (!v) resetForm(); }}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{editing ? "Editar Despesa" : "Nova Despesa"}</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2"><Label>Descrição</Label><Input value={descricao} onChange={e => setDescricao(e.target.value)} required /></div>
@@ -150,6 +161,11 @@ const DespesasTab = ({ obraId }: Props) => {
               <div className="space-y-2"><Label>Valor Real</Label><Input type="number" step="0.01" value={valorReal} onChange={e => setValorReal(e.target.value)} /></div>
               <div className="space-y-2"><Label>Data</Label><Input type="date" value={data} onChange={e => setData(e.target.value)} /></div>
             </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2"><Label>Condição Pagamento</Label><Input value={condicaoPagamento} onChange={e => setCondicaoPagamento(e.target.value)} placeholder="Ex: 30/60/90" /></div>
+              <div className="space-y-2"><Label>Vencimento</Label><Input type="date" value={dataVencimento} onChange={e => setDataVencimento(e.target.value)} /></div>
+              <div className="space-y-2"><Label>Parcelas</Label><Input type="number" min="1" value={parcelas} onChange={e => setParcelas(e.target.value)} /></div>
+            </div>
             <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => { setShowDialog(false); resetForm(); }}>Cancelar</Button><Button type="submit">{editing ? "Salvar" : "Criar"}</Button></div>
           </form>
         </DialogContent>
@@ -185,15 +201,16 @@ const DespesasTab = ({ obraId }: Props) => {
               <TableHead className="w-28">Categoria</TableHead>
               <TableHead className="w-28">Previsto</TableHead>
               <TableHead className="w-28">Real</TableHead>
+              <TableHead className="w-24">Vencimento</TableHead>
               <TableHead className="w-20">Pago</TableHead>
               <TableHead className="w-24 text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
             ) : !filtered.length ? (
-              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhuma despesa</TableCell></TableRow>
+              <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Nenhuma despesa</TableCell></TableRow>
             ) : (
               filtered.map((d) => (
                 <TableRow key={d.id}>
@@ -206,6 +223,7 @@ const DespesasTab = ({ obraId }: Props) => {
                   <TableCell className={d.valor_real > d.valor_previsto ? "text-destructive font-medium" : ""}>
                     {d.valor_real > 0 ? `R$ ${d.valor_real.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"}
                   </TableCell>
+                  <TableCell>{(d as any).data_vencimento ? new Date((d as any).data_vencimento).toLocaleDateString("pt-BR") : "—"}</TableCell>
                   <TableCell>
                     <Badge variant={d.pago ? "default" : "outline"} className={d.pago ? "bg-success text-success-foreground" : ""}>{d.pago ? "Sim" : "Não"}</Badge>
                   </TableCell>

@@ -1,4 +1,5 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { useDespesas } from "@/hooks/useDespesas";
 import { useEtapas } from "@/hooks/useEtapas";
 
@@ -19,7 +20,6 @@ const FinanceiroTab = ({ obraId }: Props) => {
     byEtapa.set(et.id, { nome: et.nome, previsto: 0, realizado: 0 });
   });
 
-  // "Sem etapa" bucket
   let semEtapaPrev = 0, semEtapaReal = 0;
 
   despesas?.forEach(d => {
@@ -42,8 +42,13 @@ const FinanceiroTab = ({ obraId }: Props) => {
   const totalRealizado = rows.reduce((s, r) => s + r.realizado, 0);
   const saldo = totalPrevisto - totalRealizado;
 
+  // Fluxo de caixa — despesas com data_vencimento
+  const fluxoCaixa = (despesas || [])
+    .filter((d: any) => d.data_vencimento)
+    .sort((a: any, b: any) => a.data_vencimento.localeCompare(b.data_vencimento));
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <h2 className="text-lg font-semibold">Financeiro</h2>
 
       <div className="grid grid-cols-3 gap-4">
@@ -106,6 +111,43 @@ const FinanceiroTab = ({ obraId }: Props) => {
               </TableRow>
             </TableFooter>
           )}
+        </Table>
+      </div>
+
+      {/* Fluxo de Caixa */}
+      <h3 className="text-md font-semibold mt-4">Fluxo de Caixa (por vencimento)</h3>
+      <div className="bg-card rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-28">Vencimento</TableHead>
+              <TableHead>Descrição</TableHead>
+              <TableHead>Fornecedor</TableHead>
+              <TableHead className="w-28">Valor</TableHead>
+              <TableHead className="w-24">Condição</TableHead>
+              <TableHead className="w-20">Parcelas</TableHead>
+              <TableHead className="w-20">Pago</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {fluxoCaixa.length === 0 ? (
+              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhuma despesa com vencimento</TableCell></TableRow>
+            ) : (
+              fluxoCaixa.map((d: any) => (
+                <TableRow key={d.id}>
+                  <TableCell>{new Date(d.data_vencimento).toLocaleDateString("pt-BR")}</TableCell>
+                  <TableCell className="font-medium">{d.descricao}</TableCell>
+                  <TableCell>{d.fornecedores?.nome || "—"}</TableCell>
+                  <TableCell>{fmt(d.valor_previsto)}</TableCell>
+                  <TableCell className="text-sm">{d.condicao_pagamento || "—"}</TableCell>
+                  <TableCell className="text-center font-mono">{d.parcelas || 1}</TableCell>
+                  <TableCell>
+                    <Badge variant={d.pago ? "default" : "outline"} className={d.pago ? "bg-success text-success-foreground" : ""}>{d.pago ? "Sim" : "Não"}</Badge>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
         </Table>
       </div>
     </div>

@@ -182,6 +182,7 @@ export const useAprovarOrcamento = () => {
             return {
               obra_id: obraId,
               etapa_id: item.etapa_id,
+              subetapa_id: item.subetapa_id || null,
               fornecedor_id: selected.fornecedor_id,
               descricao: item.descricao,
               categoria: "material" as const,
