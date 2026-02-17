@@ -112,6 +112,7 @@ export type Database = {
           obra_id: string
           origem: Database["public"]["Enums"]["origem_despesa"]
           pago: boolean
+          subetapa_id: string | null
           valor_previsto: number
           valor_real: number
         }
@@ -126,6 +127,7 @@ export type Database = {
           obra_id: string
           origem?: Database["public"]["Enums"]["origem_despesa"]
           pago?: boolean
+          subetapa_id?: string | null
           valor_previsto?: number
           valor_real?: number
         }
@@ -140,6 +142,7 @@ export type Database = {
           obra_id?: string
           origem?: Database["public"]["Enums"]["origem_despesa"]
           pago?: boolean
+          subetapa_id?: string | null
           valor_previsto?: number
           valor_real?: number
         }
@@ -163,6 +166,13 @@ export type Database = {
             columns: ["obra_id"]
             isOneToOne: false
             referencedRelation: "obras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "despesas_subetapa_id_fkey"
+            columns: ["subetapa_id"]
+            isOneToOne: false
+            referencedRelation: "subetapas"
             referencedColumns: ["id"]
           },
         ]
@@ -297,6 +307,7 @@ export type Database = {
           id: string
           orcamento_id: string
           quantidade: number
+          subetapa_id: string | null
           unidade: string
           valor_estimado_unitario: number
         }
@@ -307,6 +318,7 @@ export type Database = {
           id?: string
           orcamento_id: string
           quantidade?: number
+          subetapa_id?: string | null
           unidade?: string
           valor_estimado_unitario?: number
         }
@@ -317,6 +329,7 @@ export type Database = {
           id?: string
           orcamento_id?: string
           quantidade?: number
+          subetapa_id?: string | null
           unidade?: string
           valor_estimado_unitario?: number
         }
@@ -333,6 +346,13 @@ export type Database = {
             columns: ["orcamento_id"]
             isOneToOne: false
             referencedRelation: "orcamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_itens_subetapa_id_fkey"
+            columns: ["subetapa_id"]
+            isOneToOne: false
+            referencedRelation: "subetapas"
             referencedColumns: ["id"]
           },
         ]

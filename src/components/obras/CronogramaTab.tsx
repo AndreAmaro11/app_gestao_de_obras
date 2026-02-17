@@ -9,25 +9,50 @@ import StatusBadge from "@/components/StatusBadge";
 import { Plus, Pencil, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import { differenceInDays } from "date-fns";
 import { useEtapas, useCreateEtapa, useUpdateEtapa, useDeleteEtapa } from "@/hooks/useEtapas";
-import { useSubetapas, useCreateSubetapa, useDeleteSubetapa } from "@/hooks/useSubetapas";
+import { useSubetapas, useCreateSubetapa, useUpdateSubetapa, useDeleteSubetapa } from "@/hooks/useSubetapas";
 import { useToast } from "@/hooks/use-toast";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface Props { obraId: string; }
 
 const SubetapasRow = ({ etapaId, obraId }: { etapaId: string; obraId: string }) => {
   const { data: subetapas, isLoading } = useSubetapas(etapaId);
   const createSub = useCreateSubetapa();
+  const updateSub = useUpdateSubetapa();
   const deleteSub = useDeleteSubetapa();
   const { toast } = useToast();
   const [showAdd, setShowAdd] = useState(false);
+  const [editingSub, setEditingSub] = useState<any>(null);
   const [nome, setNome] = useState("");
+  const [inicioPrev, setInicioPrev] = useState("");
+  const [fimPrev, setFimPrev] = useState("");
+  const [status, setStatus] = useState("nao_iniciada");
+  const [percentual, setPercentual] = useState("0");
 
-  const handleAdd = async (e: React.FormEvent) => {
+  const resetForm = () => { setNome(""); setInicioPrev(""); setFimPrev(""); setStatus("nao_iniciada"); setPercentual("0"); setEditingSub(null); };
+
+  const openEdit = (s: any) => {
+    setEditingSub(s);
+    setNome(s.nome);
+    setInicioPrev(s.inicio_previsto || "");
+    setFimPrev(s.fim_previsto || "");
+    setStatus(s.status);
+    setPercentual(String(s.percentual_concluido));
+    setShowAdd(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await createSub.mutateAsync({ etapa_id: etapaId, nome, ordem: (subetapas?.length || 0) + 1 });
-      setNome(""); setShowAdd(false);
+      if (editingSub) {
+        await updateSub.mutateAsync({
+          id: editingSub.id, etapa_id: etapaId, nome,
+          inicio_previsto: inicioPrev || null, fim_previsto: fimPrev || null,
+          status: status as any, percentual_concluido: Number(percentual),
+        });
+      } else {
+        await createSub.mutateAsync({ etapa_id: etapaId, nome, ordem: (subetapas?.length || 0) + 1, inicio_previsto: inicioPrev || null, fim_previsto: fimPrev || null });
+      }
+      setShowAdd(false); resetForm();
     } catch (err: any) { toast({ title: "Erro", description: err.message, variant: "destructive" }); }
   };
 
@@ -44,31 +69,51 @@ const SubetapasRow = ({ etapaId, obraId }: { etapaId: string; obraId: string }) 
           <TableCell><span className="font-mono text-sm">{s.percentual_concluido}%</span></TableCell>
           <TableCell><StatusBadge status={s.status} /></TableCell>
           <TableCell className="text-right">
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteSub.mutate({ id: s.id, etapa_id: etapaId })}>
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+            <div className="flex justify-end gap-1">
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(s)}><Pencil className="h-3.5 w-3.5" /></Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteSub.mutate({ id: s.id, etapa_id: etapaId })}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </TableCell>
         </TableRow>
       ))}
-      {showAdd ? (
-        <TableRow className="bg-muted/20">
-          <TableCell colSpan={7} className="pl-10">
-            <form onSubmit={handleAdd} className="flex items-center gap-2">
-              <Input value={nome} onChange={e => setNome(e.target.value)} placeholder="Nome da subetapa" className="h-8 w-64" required />
-              <Button size="sm" type="submit" className="h-8">Salvar</Button>
-              <Button size="sm" variant="ghost" type="button" className="h-8" onClick={() => setShowAdd(false)}>Cancelar</Button>
-            </form>
-          </TableCell>
-        </TableRow>
-      ) : (
-        <TableRow className="bg-muted/20">
-          <TableCell colSpan={7} className="pl-10">
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setShowAdd(true)}>
-              <Plus className="h-3 w-3 mr-1" />Subetapa
-            </Button>
-          </TableCell>
-        </TableRow>
-      )}
+      <Dialog open={showAdd} onOpenChange={(v) => { setShowAdd(v); if (!v) resetForm(); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{editingSub ? "Editar Subetapa" : "Nova Subetapa"}</DialogTitle></DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2"><Label>Nome</Label><Input value={nome} onChange={e => setNome(e.target.value)} required /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>Início Previsto</Label><Input type="date" value={inicioPrev} onChange={e => setInicioPrev(e.target.value)} /></div>
+              <div className="space-y-2"><Label>Fim Previsto</Label><Input type="date" value={fimPrev} onChange={e => setFimPrev(e.target.value)} /></div>
+            </div>
+            {editingSub && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select value={status} onValueChange={setStatus}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="nao_iniciada">Não Iniciada</SelectItem>
+                      <SelectItem value="em_andamento">Em Andamento</SelectItem>
+                      <SelectItem value="concluida">Concluída</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2"><Label>% Concluído</Label><Input type="number" min="0" max="100" value={percentual} onChange={e => setPercentual(e.target.value)} /></div>
+              </div>
+            )}
+            <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => { setShowAdd(false); resetForm(); }}>Cancelar</Button><Button type="submit">{editingSub ? "Salvar" : "Criar"}</Button></div>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <TableRow className="bg-muted/20">
+        <TableCell colSpan={7} className="pl-10">
+          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { resetForm(); setShowAdd(true); }}>
+            <Plus className="h-3 w-3 mr-1" />Subetapa
+          </Button>
+        </TableCell>
+      </TableRow>
     </>
   );
 };
@@ -76,13 +121,19 @@ const SubetapasRow = ({ etapaId, obraId }: { etapaId: string; obraId: string }) 
 const CronogramaTab = ({ obraId }: Props) => {
   const { data: etapas, isLoading } = useEtapas(obraId);
   const createEtapa = useCreateEtapa();
+  const updateEtapa = useUpdateEtapa();
   const deleteEtapa = useDeleteEtapa();
   const { toast } = useToast();
   const [expandedEtapas, setExpandedEtapas] = useState<Set<string>>(new Set());
   const [showDialog, setShowDialog] = useState(false);
+  const [editingEtapa, setEditingEtapa] = useState<any>(null);
   const [nome, setNome] = useState("");
   const [inicioPrev, setInicioPrev] = useState("");
   const [fimPrev, setFimPrev] = useState("");
+  const [status, setStatus] = useState("nao_iniciada");
+  const [percentual, setPercentual] = useState("0");
+
+  const resetForm = () => { setNome(""); setInicioPrev(""); setFimPrev(""); setStatus("nao_iniciada"); setPercentual("0"); setEditingEtapa(null); };
 
   const toggleExpand = (id: string) => {
     setExpandedEtapas(prev => {
@@ -92,14 +143,32 @@ const CronogramaTab = ({ obraId }: Props) => {
     });
   };
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const openEdit = (etapa: any) => {
+    setEditingEtapa(etapa);
+    setNome(etapa.nome);
+    setInicioPrev(etapa.inicio_previsto || "");
+    setFimPrev(etapa.fim_previsto || "");
+    setStatus(etapa.status);
+    setPercentual(String(etapa.percentual_concluido));
+    setShowDialog(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await createEtapa.mutateAsync({
-        obra_id: obraId, nome, ordem: (etapas?.length || 0) + 1,
-        inicio_previsto: inicioPrev || null, fim_previsto: fimPrev || null,
-      });
-      setShowDialog(false); setNome(""); setInicioPrev(""); setFimPrev("");
+      if (editingEtapa) {
+        await updateEtapa.mutateAsync({
+          id: editingEtapa.id, obra_id: obraId, nome,
+          inicio_previsto: inicioPrev || null, fim_previsto: fimPrev || null,
+          status: status as any, percentual_concluido: Number(percentual),
+        });
+      } else {
+        await createEtapa.mutateAsync({
+          obra_id: obraId, nome, ordem: (etapas?.length || 0) + 1,
+          inicio_previsto: inicioPrev || null, fim_previsto: fimPrev || null,
+        });
+      }
+      setShowDialog(false); resetForm();
     } catch (err: any) { toast({ title: "Erro", description: err.message, variant: "destructive" }); }
   };
 
@@ -113,21 +182,37 @@ const CronogramaTab = ({ obraId }: Props) => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-semibold">Etapas</h2>
-        <Button size="sm" onClick={() => setShowDialog(true)}><Plus className="h-4 w-4 mr-1" />Nova Etapa</Button>
+        <Button size="sm" onClick={() => { resetForm(); setShowDialog(true); }}><Plus className="h-4 w-4 mr-1" />Nova Etapa</Button>
       </div>
 
-      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+      <Dialog open={showDialog} onOpenChange={(v) => { setShowDialog(v); if (!v) resetForm(); }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Nova Etapa</DialogTitle></DialogHeader>
-          <form onSubmit={handleCreate} className="space-y-4">
+          <DialogHeader><DialogTitle>{editingEtapa ? "Editar Etapa" : "Nova Etapa"}</DialogTitle></DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2"><Label>Nome</Label><Input value={nome} onChange={e => setNome(e.target.value)} required /></div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Início Previsto</Label><Input type="date" value={inicioPrev} onChange={e => setInicioPrev(e.target.value)} /></div>
               <div className="space-y-2"><Label>Fim Previsto</Label><Input type="date" value={fimPrev} onChange={e => setFimPrev(e.target.value)} /></div>
             </div>
+            {editingEtapa && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select value={status} onValueChange={setStatus}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="nao_iniciada">Não Iniciada</SelectItem>
+                      <SelectItem value="em_andamento">Em Andamento</SelectItem>
+                      <SelectItem value="concluida">Concluída</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2"><Label>% Concluído</Label><Input type="number" min="0" max="100" value={percentual} onChange={e => setPercentual(e.target.value)} /></div>
+              </div>
+            )}
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setShowDialog(false)}>Cancelar</Button>
-              <Button type="submit">Criar</Button>
+              <Button type="button" variant="outline" onClick={() => { setShowDialog(false); resetForm(); }}>Cancelar</Button>
+              <Button type="submit">{editingEtapa ? "Salvar" : "Criar"}</Button>
             </div>
           </form>
         </DialogContent>
@@ -168,6 +253,7 @@ const CronogramaTab = ({ obraId }: Props) => {
                     <TableCell><StatusBadge status={etapa.status} /></TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1" onClick={e => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(etapa)}><Pencil className="h-3.5 w-3.5" /></Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteEtapa.mutate({ id: etapa.id, obra_id: obraId })}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>

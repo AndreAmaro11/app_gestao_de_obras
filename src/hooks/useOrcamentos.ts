@@ -82,6 +82,18 @@ export const useCreateOrcamentoItem = () => {
   });
 };
 
+export const useUpdateOrcamentoItem = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, orcamento_id, ...updates }: { id: string; orcamento_id: string; [key: string]: any }) => {
+      const { error } = await supabase.from("orcamento_itens").update(updates).eq("id", id);
+      if (error) throw error;
+      return orcamento_id;
+    },
+    onSuccess: (orcamento_id) => qc.invalidateQueries({ queryKey: ["orcamento_itens", orcamento_id] }),
+  });
+};
+
 export const useDeleteOrcamentoItem = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -91,6 +103,18 @@ export const useDeleteOrcamentoItem = () => {
       return orcamento_id;
     },
     onSuccess: (orcamento_id) => qc.invalidateQueries({ queryKey: ["orcamento_itens", orcamento_id] }),
+  });
+};
+
+export const useUpdateCotacao = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, orcamento_item_id, ...updates }: { id: string; orcamento_item_id: string; [key: string]: any }) => {
+      const { error } = await supabase.from("cotacoes").update(updates).eq("id", id);
+      if (error) throw error;
+      return orcamento_item_id;
+    },
+    onSuccess: (orcamento_item_id) => qc.invalidateQueries({ queryKey: ["cotacoes", orcamento_item_id] }),
   });
 };
 

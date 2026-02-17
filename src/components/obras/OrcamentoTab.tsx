@@ -6,15 +6,33 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import StatusBadge from "@/components/StatusBadge";
-import { Plus, ArrowLeft, Check, ChevronRight } from "lucide-react";
-import { useOrcamentos, useCreateOrcamento, useOrcamentoItens, useCreateOrcamentoItem, useCotacoes, useCreateCotacao, useSelectCotacao, useAprovarOrcamento } from "@/hooks/useOrcamentos";
+import { Plus, ArrowLeft, Check, ChevronRight, Pencil, Trash2 } from "lucide-react";
+import { useOrcamentos, useCreateOrcamento, useOrcamentoItens, useCreateOrcamentoItem, useUpdateOrcamentoItem, useDeleteOrcamentoItem, useCotacoes, useCreateCotacao, useUpdateCotacao, useSelectCotacao, useAprovarOrcamento } from "@/hooks/useOrcamentos";
 import { useEtapas } from "@/hooks/useEtapas";
+import { useSubetapas } from "@/hooks/useSubetapas";
 import { useFornecedores } from "@/hooks/useFornecedores";
 import { useToast } from "@/hooks/use-toast";
 
 interface Props { obraId: string; }
 
 type View = "list" | "items" | "cotacoes";
+
+const SubetapaSelect = ({ etapaId, value, onChange }: { etapaId: string | undefined; value: string; onChange: (v: string) => void }) => {
+  const { data: subetapas } = useSubetapas(etapaId || "");
+  if (!etapaId || !subetapas?.length) return null;
+  return (
+    <div className="space-y-2">
+      <Label>Subetapa</Label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger><SelectValue placeholder="Selecione (opcional)" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__none__">Nenhuma</SelectItem>
+          {subetapas.map(s => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+};
 
 const OrcamentoTab = ({ obraId }: Props) => {
   const { data: orcamentos, isLoading } = useOrcamentos(obraId);
@@ -25,12 +43,8 @@ const OrcamentoTab = ({ obraId }: Props) => {
   const [view, setView] = useState<View>("list");
   const [selectedOrcamentoId, setSelectedOrcamentoId] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
-
-  // Dialogs
   const [showNewOrc, setShowNewOrc] = useState(false);
   const [orcNome, setOrcNome] = useState("");
-  const [showNewItem, setShowNewItem] = useState(false);
-  const [showNewCot, setShowNewCot] = useState(false);
 
   const selectedOrcamento = orcamentos?.find(o => o.id === selectedOrcamentoId);
 
@@ -75,13 +89,7 @@ const OrcamentoTab = ({ obraId }: Props) => {
       </Dialog>
       <div className="bg-card rounded-md border">
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead className="w-32">Status</TableHead>
-              <TableHead className="w-20">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
+          <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead className="w-32">Status</TableHead><TableHead className="w-20">Ações</TableHead></TableRow></TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
@@ -108,19 +116,49 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
   const { data: itens, isLoading } = useOrcamentoItens(orcamentoId);
   const { data: etapas } = useEtapas(obraId);
   const createItem = useCreateOrcamentoItem();
+  const updateItem = useUpdateOrcamentoItem();
+  const deleteItem = useDeleteOrcamentoItem();
   const { toast } = useToast();
   const [showAdd, setShowAdd] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
   const [descricao, setDescricao] = useState("");
   const [etapaId, setEtapaId] = useState("");
+  const [subetapaId, setSubetapaId] = useState("");
   const [unidade, setUnidade] = useState("un");
   const [quantidade, setQuantidade] = useState("1");
   const [valorUnit, setValorUnit] = useState("0");
 
-  const handleAdd = async (e: React.FormEvent) => {
+  const resetForm = () => { setDescricao(""); setEtapaId(""); setSubetapaId(""); setUnidade("un"); setQuantidade("1"); setValorUnit("0"); setEditingItem(null); };
+
+  const openEdit = (item: any) => {
+    setEditingItem(item);
+    setDescricao(item.descricao);
+    setEtapaId(item.etapa_id || "");
+    setSubetapaId(item.subetapa_id || "");
+    setUnidade(item.unidade);
+    setQuantidade(String(item.quantidade));
+    setValorUnit(String(item.valor_estimado_unitario));
+    setShowAdd(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const subId = subetapaId && subetapaId !== "__none__" ? subetapaId : null;
     try {
-      await createItem.mutateAsync({ orcamento_id: orcamentoId, descricao, etapa_id: etapaId || null, unidade, quantidade: Number(quantidade), valor_estimado_unitario: Number(valorUnit) });
-      setShowAdd(false); setDescricao(""); setEtapaId(""); setUnidade("un"); setQuantidade("1"); setValorUnit("0");
+      if (editingItem) {
+        await updateItem.mutateAsync({
+          id: editingItem.id, orcamento_id: orcamentoId,
+          descricao, etapa_id: etapaId || null, subetapa_id: subId,
+          unidade, quantidade: Number(quantidade), valor_estimado_unitario: Number(valorUnit),
+        });
+      } else {
+        await createItem.mutateAsync({
+          orcamento_id: orcamentoId, descricao, etapa_id: etapaId || null,
+          subetapa_id: subId, unidade, quantidade: Number(quantidade),
+          valor_estimado_unitario: Number(valorUnit),
+        } as any);
+      }
+      setShowAdd(false); resetForm();
     } catch (err: any) { toast({ title: "Erro", description: err.message, variant: "destructive" }); }
   };
 
@@ -132,44 +170,37 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
           <h2 className="text-lg font-semibold">Itens — {orcNome}</h2>
         </div>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => setShowAdd(true)}><Plus className="h-4 w-4 mr-1" />Novo Item</Button>
+          <Button size="sm" variant="outline" onClick={() => { resetForm(); setShowAdd(true); }}><Plus className="h-4 w-4 mr-1" />Novo Item</Button>
           {orcStatus !== "aprovado" && <Button size="sm" onClick={onAprovar}>Aprovar Orçamento</Button>}
         </div>
       </div>
-      <Dialog open={showAdd} onOpenChange={setShowAdd}>
+      <Dialog open={showAdd} onOpenChange={(v) => { setShowAdd(v); if (!v) resetForm(); }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Novo Item</DialogTitle></DialogHeader>
-          <form onSubmit={handleAdd} className="space-y-4">
+          <DialogHeader><DialogTitle>{editingItem ? "Editar Item" : "Novo Item"}</DialogTitle></DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2"><Label>Descrição</Label><Input value={descricao} onChange={e => setDescricao(e.target.value)} required /></div>
-            <div className="space-y-2">
-              <Label>Etapa</Label>
-              <Select value={etapaId} onValueChange={setEtapaId}>
-                <SelectTrigger><SelectValue placeholder="Selecione (opcional)" /></SelectTrigger>
-                <SelectContent>{etapas?.map(et => <SelectItem key={et.id} value={et.id}>{et.nome}</SelectItem>)}</SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Etapa</Label>
+                <Select value={etapaId} onValueChange={(v) => { setEtapaId(v); setSubetapaId(""); }}>
+                  <SelectTrigger><SelectValue placeholder="Selecione (opcional)" /></SelectTrigger>
+                  <SelectContent>{etapas?.map(et => <SelectItem key={et.id} value={et.id}>{et.nome}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <SubetapaSelect etapaId={etapaId || undefined} value={subetapaId} onChange={setSubetapaId} />
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2"><Label>Unidade</Label><Input value={unidade} onChange={e => setUnidade(e.target.value)} /></div>
               <div className="space-y-2"><Label>Qtde</Label><Input type="number" value={quantidade} onChange={e => setQuantidade(e.target.value)} /></div>
               <div className="space-y-2"><Label>Valor Unit. Est.</Label><Input type="number" step="0.01" value={valorUnit} onChange={e => setValorUnit(e.target.value)} /></div>
             </div>
-            <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setShowAdd(false)}>Cancelar</Button><Button type="submit">Criar</Button></div>
+            <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => { setShowAdd(false); resetForm(); }}>Cancelar</Button><Button type="submit">{editingItem ? "Salvar" : "Criar"}</Button></div>
           </form>
         </DialogContent>
       </Dialog>
       <div className="bg-card rounded-md border">
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Etapa</TableHead>
-              <TableHead>Descrição</TableHead>
-              <TableHead className="w-20">Unidade</TableHead>
-              <TableHead className="w-20">Qtde</TableHead>
-              <TableHead className="w-28">Estimado Unit.</TableHead>
-              <TableHead className="w-28">Total</TableHead>
-              <TableHead className="w-20">Cotações</TableHead>
-            </TableRow>
-          </TableHeader>
+          <TableHeader><TableRow><TableHead>Etapa</TableHead><TableHead>Descrição</TableHead><TableHead className="w-20">Unidade</TableHead><TableHead className="w-20">Qtde</TableHead><TableHead className="w-28">Estimado Unit.</TableHead><TableHead className="w-28">Total</TableHead><TableHead className="w-24 text-right">Ações</TableHead></TableRow></TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
@@ -179,14 +210,20 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
               itens.map(item => {
                 const total = item.quantidade * item.valor_estimado_unitario;
                 return (
-                  <TableRow key={item.id} className="cursor-pointer hover:bg-muted/50" onClick={() => onSelectItem(item.id)}>
+                  <TableRow key={item.id}>
                     <TableCell className="text-muted-foreground">{(item.etapas as any)?.nome || "—"}</TableCell>
                     <TableCell className="font-medium">{item.descricao}</TableCell>
                     <TableCell>{item.unidade}</TableCell>
                     <TableCell className="font-mono">{item.quantidade}</TableCell>
                     <TableCell>R$ {item.valor_estimado_unitario.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
                     <TableCell className="font-semibold">R$ {total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
-                    <TableCell><ChevronRight className="h-4 w-4 text-muted-foreground" /></TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)}><Pencil className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onSelectItem(item.id)}><ChevronRight className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteItem.mutate({ id: item.id, orcamento_id: orcamentoId })}><Trash2 className="h-3.5 w-3.5" /></Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 );
               })
@@ -203,20 +240,46 @@ const CotacoesView = ({ itemId, obraId, onBack }: { itemId: string; obraId: stri
   const { data: cotacoes, isLoading } = useCotacoes(itemId);
   const { data: fornecedores } = useFornecedores();
   const createCotacao = useCreateCotacao();
+  const updateCotacao = useUpdateCotacao();
   const selectCotacao = useSelectCotacao();
   const { toast } = useToast();
   const [showAdd, setShowAdd] = useState(false);
+  const [editingCot, setEditingCot] = useState<any>(null);
   const [fornecedorId, setFornecedorId] = useState("");
   const [valorUnit, setValorUnit] = useState("");
   const [prazo, setPrazo] = useState("");
+  const [observacao, setObservacao] = useState("");
 
   const menorValor = cotacoes?.length ? Math.min(...cotacoes.map(c => c.valor_unitario)) : 0;
 
-  const handleAdd = async (e: React.FormEvent) => {
+  const resetForm = () => { setFornecedorId(""); setValorUnit(""); setPrazo(""); setObservacao(""); setEditingCot(null); };
+
+  const openEdit = (cot: any) => {
+    setEditingCot(cot);
+    setFornecedorId(cot.fornecedor_id || "");
+    setValorUnit(String(cot.valor_unitario));
+    setPrazo(cot.prazo_entrega || "");
+    setObservacao(cot.observacao || "");
+    setShowAdd(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await createCotacao.mutateAsync({ orcamento_item_id: itemId, fornecedor_id: fornecedorId || null, valor_unitario: Number(valorUnit), prazo_entrega: prazo || null });
-      setShowAdd(false); setFornecedorId(""); setValorUnit(""); setPrazo("");
+      if (editingCot) {
+        await updateCotacao.mutateAsync({
+          id: editingCot.id, orcamento_item_id: itemId,
+          fornecedor_id: fornecedorId || null, valor_unitario: Number(valorUnit),
+          prazo_entrega: prazo || null, observacao: observacao || null,
+        });
+      } else {
+        await createCotacao.mutateAsync({
+          orcamento_item_id: itemId, fornecedor_id: fornecedorId || null,
+          valor_unitario: Number(valorUnit), prazo_entrega: prazo || null,
+          observacao: observacao || null,
+        } as any);
+      }
+      setShowAdd(false); resetForm();
     } catch (err: any) { toast({ title: "Erro", description: err.message, variant: "destructive" }); }
   };
 
@@ -233,12 +296,12 @@ const CotacoesView = ({ itemId, obraId, onBack }: { itemId: string; obraId: stri
           <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="h-4 w-4 mr-1" />Voltar</Button>
           <h2 className="text-lg font-semibold">Cotações</h2>
         </div>
-        <Button size="sm" onClick={() => setShowAdd(true)}><Plus className="h-4 w-4 mr-1" />Nova Cotação</Button>
+        <Button size="sm" onClick={() => { resetForm(); setShowAdd(true); }}><Plus className="h-4 w-4 mr-1" />Nova Cotação</Button>
       </div>
-      <Dialog open={showAdd} onOpenChange={setShowAdd}>
+      <Dialog open={showAdd} onOpenChange={(v) => { setShowAdd(v); if (!v) resetForm(); }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Nova Cotação</DialogTitle></DialogHeader>
-          <form onSubmit={handleAdd} className="space-y-4">
+          <DialogHeader><DialogTitle>{editingCot ? "Editar Cotação" : "Nova Cotação"}</DialogTitle></DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label>Fornecedor</Label>
               <Select value={fornecedorId} onValueChange={setFornecedorId}>
@@ -250,26 +313,19 @@ const CotacoesView = ({ itemId, obraId, onBack }: { itemId: string; obraId: stri
               <div className="space-y-2"><Label>Valor Unitário</Label><Input type="number" step="0.01" value={valorUnit} onChange={e => setValorUnit(e.target.value)} required /></div>
               <div className="space-y-2"><Label>Prazo Entrega</Label><Input value={prazo} onChange={e => setPrazo(e.target.value)} placeholder="Ex: 3 dias" /></div>
             </div>
-            <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setShowAdd(false)}>Cancelar</Button><Button type="submit">Criar</Button></div>
+            <div className="space-y-2"><Label>Observação</Label><Input value={observacao} onChange={e => setObservacao(e.target.value)} /></div>
+            <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => { setShowAdd(false); resetForm(); }}>Cancelar</Button><Button type="submit">{editingCot ? "Salvar" : "Criar"}</Button></div>
           </form>
         </DialogContent>
       </Dialog>
       <div className="bg-card rounded-md border">
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Fornecedor</TableHead>
-              <TableHead className="w-28">Valor Unit.</TableHead>
-              <TableHead className="w-24">Prazo</TableHead>
-              <TableHead className="w-28">Diferença %</TableHead>
-              <TableHead className="w-28">Selecionado</TableHead>
-            </TableRow>
-          </TableHeader>
+          <TableHeader><TableRow><TableHead>Fornecedor</TableHead><TableHead className="w-28">Valor Unit.</TableHead><TableHead className="w-24">Prazo</TableHead><TableHead className="w-28">Diferença %</TableHead><TableHead className="w-28">Selecionado</TableHead><TableHead className="w-20 text-right">Ações</TableHead></TableRow></TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
             ) : !cotacoes?.length ? (
-              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma cotação</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma cotação</TableCell></TableRow>
             ) : (
               cotacoes.map(cot => {
                 const diff = menorValor > 0 ? ((cot.valor_unitario - menorValor) / menorValor * 100).toFixed(1) : "0";
@@ -285,6 +341,9 @@ const CotacoesView = ({ itemId, obraId, onBack }: { itemId: string; obraId: stri
                         {cot.selecionado && <Check className="h-3 w-3 mr-1" />}
                         {cot.selecionado ? "Selecionado" : "Selecionar"}
                       </Button>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(cot)}><Pencil className="h-3.5 w-3.5" /></Button>
                     </TableCell>
                   </TableRow>
                 );
