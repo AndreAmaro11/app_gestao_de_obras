@@ -1,13 +1,20 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useDespesas } from "@/hooks/useDespesas";
 import { useEtapas } from "@/hooks/useEtapas";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
 const fmt = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+
+const categoriaLabel: Record<string, string> = {
+  material: "Material", mao_de_obra: "Mão de Obra", servico: "Serviço",
+  equipamento: "Equipamento", transporte: "Transporte", administrativo: "Administrativo",
+  projeto: "Projeto", outros: "Outros",
+};
 
 interface Props { obraId: string; }
 
@@ -18,36 +25,32 @@ const FinanceiroTab = ({ obraId }: Props) => {
   const [showFluxo, setShowFluxo] = useState(true);
   const [showMatrix, setShowMatrix] = useState(true);
 
-  if (loadingDespesas || loadingEtapas) return <div className="text-center text-muted-foreground py-8">Carregando...</div>;
+  // Filters
+  const [filtroAno, setFiltroAno] = useState("todos");
+  const [filtroPeriodo, setFiltroPeriodo] = useState("todos"); // Q1, Q2, Q3, Q4, S1, S2
+  const [filtroPago, setFiltroPago] = useState("todos"); // todos, pago, nao_pago
+  const [filtroCategoria, setFiltroCategoria] = useState("todos");
+  const [filtroEtapa, setFiltroEtapa] = useState("todos");
 
-  // Summary by etapa
-  const byEtapa = new Map<string, { nome: string; previsto: number; realizado: number }>();
-  etapas?.forEach(et => byEtapa.set(et.id, { nome: et.nome, previsto: 0, realizado: 0 }));
-  let semEtapaPrev = 0, semEtapaReal = 0;
+  // Available years (must be before early return)
+  const availableYears = useMemo(() => {
+    if (!despesas) return [];
+    const years = new Set<string>();
+    despesas.forEach((d: any) => {
+      if (d.data_vencimento) years.add(String(new Date(d.data_vencimento).getFullYear()));
+      if (d.data) years.add(String(new Date(d.data).getFullYear()));
+    });
+    return Array.from(years).sort();
+  }, [despesas]);
+
+  if (loadingDespesas || loadingEtapas) return <div className="text-center text-muted-foreground py-8">Carregando...</div>;
 
   const parentDespesas = (despesas || []).filter((d: any) => !d.despesa_pai_id);
   const childDespesas = (despesas || []).filter((d: any) => !!d.despesa_pai_id);
 
-  parentDespesas.forEach((d: any) => {
-    if (d.etapa_id && byEtapa.has(d.etapa_id)) {
-      const entry = byEtapa.get(d.etapa_id)!;
-      entry.previsto += d.valor_previsto;
-      entry.realizado += d.valor_real;
-    } else {
-      semEtapaPrev += d.valor_previsto;
-      semEtapaReal += d.valor_real;
-    }
-  });
-
-  const rows = Array.from(byEtapa.values());
-  if (semEtapaPrev > 0 || semEtapaReal > 0) rows.push({ nome: "Sem etapa", previsto: semEtapaPrev, realizado: semEtapaReal });
-  const totalPrevisto = rows.reduce((s, r) => s + r.previsto, 0);
-  const totalRealizado = rows.reduce((s, r) => s + r.realizado, 0);
-  const saldo = totalPrevisto - totalRealizado;
-
-  // Fluxo de Caixa
+  // Build fluxo data first (unfiltered) to extract available years
   const singleDespesasWithVenc = parentDespesas.filter((d: any) => d.data_vencimento && childDespesas.filter((c: any) => c.despesa_pai_id === d.id).length === 0 && (!d.parcelas || d.parcelas <= 1));
-  
+
   const virtualParcelas: any[] = [];
   parentDespesas.forEach((d: any) => {
     if (d.data_vencimento && d.parcelas > 1 && childDespesas.filter((c: any) => c.despesa_pai_id === d.id).length === 0) {
@@ -68,14 +71,74 @@ const FinanceiroTab = ({ obraId }: Props) => {
       }
     }
   });
-  
-  const fluxoCaixa = [...singleDespesasWithVenc, ...childDespesas.filter((d: any) => d.data_vencimento), ...virtualParcelas]
+
+  const allFluxoItems = [...singleDespesasWithVenc, ...childDespesas.filter((d: any) => d.data_vencimento), ...virtualParcelas]
     .sort((a: any, b: any) => a.data_vencimento.localeCompare(b.data_vencimento));
 
-  // Matrix
-  const allWithVenc = fluxoCaixa;
+  // Filter helper
+  const matchesDateFilter = (dateStr: string | null) => {
+    if (!dateStr) return filtroAno === "todos";
+    const date = new Date(dateStr);
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+
+    if (filtroAno !== "todos" && String(year) !== filtroAno) return false;
+    if (filtroPeriodo !== "todos") {
+      if (filtroPeriodo === "Q1" && (month < 1 || month > 3)) return false;
+      if (filtroPeriodo === "Q2" && (month < 4 || month > 6)) return false;
+      if (filtroPeriodo === "Q3" && (month < 7 || month > 9)) return false;
+      if (filtroPeriodo === "Q4" && (month < 10 || month > 12)) return false;
+      if (filtroPeriodo === "S1" && month > 6) return false;
+      if (filtroPeriodo === "S2" && month <= 6) return false;
+    }
+    return true;
+  };
+
+  const matchesFilters = (d: any) => {
+    if (filtroPago === "pago" && !d.pago) return false;
+    if (filtroPago === "nao_pago" && d.pago) return false;
+    if (filtroCategoria !== "todos" && d.categoria !== filtroCategoria) return false;
+    if (filtroEtapa !== "todos" && d.etapa_id !== filtroEtapa) return false;
+    return true;
+  };
+
+  // Filtered parent despesas for summary
+  const filteredParents = parentDespesas.filter((d: any) => {
+    if (!matchesDateFilter(d.data_vencimento || d.data)) return false;
+    return matchesFilters(d);
+  });
+
+  // Summary by etapa
+  const byEtapa = new Map<string, { nome: string; previsto: number; realizado: number }>();
+  etapas?.forEach(et => byEtapa.set(et.id, { nome: et.nome, previsto: 0, realizado: 0 }));
+  let semEtapaPrev = 0, semEtapaReal = 0;
+
+  filteredParents.forEach((d: any) => {
+    if (d.etapa_id && byEtapa.has(d.etapa_id)) {
+      const entry = byEtapa.get(d.etapa_id)!;
+      entry.previsto += d.valor_previsto;
+      entry.realizado += d.valor_real;
+    } else {
+      semEtapaPrev += d.valor_previsto;
+      semEtapaReal += d.valor_real;
+    }
+  });
+
+  const rows = Array.from(byEtapa.values()).filter(r => r.previsto > 0 || r.realizado > 0);
+  if (semEtapaPrev > 0 || semEtapaReal > 0) rows.push({ nome: "Sem etapa", previsto: semEtapaPrev, realizado: semEtapaReal });
+  const totalPrevisto = rows.reduce((s, r) => s + r.previsto, 0);
+  const totalRealizado = rows.reduce((s, r) => s + r.realizado, 0);
+  const saldo = totalPrevisto - totalRealizado;
+
+  // Filtered fluxo
+  const fluxoCaixa = allFluxoItems.filter((d: any) => {
+    if (!matchesDateFilter(d.data_vencimento)) return false;
+    return matchesFilters(d);
+  });
+
+  // Matrix data
   const months = new Set<string>();
-  allWithVenc.forEach((d: any) => {
+  fluxoCaixa.forEach((d: any) => {
     const date = new Date(d.data_vencimento);
     months.add(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`);
   });
@@ -88,7 +151,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
   etapas?.forEach(et => etapaMap.set(et.id, et.nome));
 
   const byEtapaId = new Map<string, any[]>();
-  allWithVenc.forEach((d: any) => {
+  fluxoCaixa.forEach((d: any) => {
     const key = d.etapa_id || "__sem__";
     if (!byEtapaId.has(key)) byEtapaId.set(key, []);
     byEtapaId.get(key)!.push(d);
@@ -133,7 +196,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
   });
 
   const monthTotals: Record<string, number> = {};
-  allWithVenc.forEach((d: any) => {
+  fluxoCaixa.forEach((d: any) => {
     const m = `${new Date(d.data_vencimento).getFullYear()}-${String(new Date(d.data_vencimento).getMonth() + 1).padStart(2, "0")}`;
     monthTotals[m] = (monthTotals[m] || 0) + (d.valor_real || d.valor_previsto);
   });
@@ -145,9 +208,68 @@ const FinanceiroTab = ({ obraId }: Props) => {
     return `${monthNames[parseInt(mo) - 1]}/${y}`;
   };
 
+  // Counts for filter badges
+  const totalPago = fluxoCaixa.filter((d: any) => d.pago).length;
+  const totalNaoPago = fluxoCaixa.filter((d: any) => !d.pago).length;
+
   return (
     <div className="space-y-6">
       <h2 className="text-lg font-semibold">Financeiro</h2>
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3 items-center">
+        <Select value={filtroAno} onValueChange={setFiltroAno}>
+          <SelectTrigger className="w-32 h-9"><SelectValue placeholder="Ano" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os anos</SelectItem>
+            {availableYears.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        <Select value={filtroPeriodo} onValueChange={setFiltroPeriodo}>
+          <SelectTrigger className="w-36 h-9"><SelectValue placeholder="Período" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todo período</SelectItem>
+            <SelectItem value="S1">1º Semestre</SelectItem>
+            <SelectItem value="S2">2º Semestre</SelectItem>
+            <SelectItem value="Q1">1º Trimestre</SelectItem>
+            <SelectItem value="Q2">2º Trimestre</SelectItem>
+            <SelectItem value="Q3">3º Trimestre</SelectItem>
+            <SelectItem value="Q4">4º Trimestre</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={filtroPago} onValueChange={setFiltroPago}>
+          <SelectTrigger className="w-36 h-9"><SelectValue placeholder="Pagamento" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos</SelectItem>
+            <SelectItem value="pago">Pago ({totalPago})</SelectItem>
+            <SelectItem value="nao_pago">Não pago ({totalNaoPago})</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+          <SelectTrigger className="w-40 h-9"><SelectValue placeholder="Categoria" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todas categorias</SelectItem>
+            {Object.entries(categoriaLabel).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        <Select value={filtroEtapa} onValueChange={setFiltroEtapa}>
+          <SelectTrigger className="w-40 h-9"><SelectValue placeholder="Etapa" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todas etapas</SelectItem>
+            {etapas?.map(et => <SelectItem key={et.id} value={et.id}>{et.nome}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        {(filtroAno !== "todos" || filtroPeriodo !== "todos" || filtroPago !== "todos" || filtroCategoria !== "todos" || filtroEtapa !== "todos") && (
+          <Button variant="ghost" size="sm" onClick={() => { setFiltroAno("todos"); setFiltroPeriodo("todos"); setFiltroPago("todos"); setFiltroCategoria("todos"); setFiltroEtapa("todos"); }}>
+            Limpar filtros
+          </Button>
+        )}
+      </div>
 
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-card border rounded-md p-4">
@@ -185,9 +307,9 @@ const FinanceiroTab = ({ obraId }: Props) => {
               return (
                 <TableRow key={row.nome}>
                   <TableCell className="font-medium">{row.nome}</TableCell>
-                  <TableCell>{fmt(row.previsto)}</TableCell>
-                  <TableCell>{row.realizado > 0 ? fmt(row.realizado) : "—"}</TableCell>
-                  <TableCell className={diff < 0 ? "text-destructive font-medium" : ""}>{row.realizado > 0 ? fmt(diff) : "—"}</TableCell>
+                  <TableCell className="whitespace-nowrap">{fmt(row.previsto)}</TableCell>
+                  <TableCell className="whitespace-nowrap">{row.realizado > 0 ? fmt(row.realizado) : "—"}</TableCell>
+                  <TableCell className={`whitespace-nowrap ${diff < 0 ? "text-destructive font-medium" : ""}`}>{row.realizado > 0 ? fmt(diff) : "—"}</TableCell>
                   <TableCell><span className="font-mono text-sm">{pct}%</span></TableCell>
                 </TableRow>
               );
@@ -197,9 +319,9 @@ const FinanceiroTab = ({ obraId }: Props) => {
             <TableFooter>
               <TableRow className="font-semibold">
                 <TableCell>Total</TableCell>
-                <TableCell>{fmt(totalPrevisto)}</TableCell>
-                <TableCell>{fmt(totalRealizado)}</TableCell>
-                <TableCell className={saldo < 0 ? "text-destructive" : ""}>{fmt(saldo)}</TableCell>
+                <TableCell className="whitespace-nowrap">{fmt(totalPrevisto)}</TableCell>
+                <TableCell className="whitespace-nowrap">{fmt(totalRealizado)}</TableCell>
+                <TableCell className={`whitespace-nowrap ${saldo < 0 ? "text-destructive" : ""}`}>{fmt(saldo)}</TableCell>
                 <TableCell><span className="font-mono">{totalPrevisto > 0 ? Math.round((totalRealizado / totalPrevisto) * 100) : 0}%</span></TableCell>
               </TableRow>
             </TableFooter>
@@ -207,7 +329,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
         </Table>
       </div>
 
-      {/* Relatório Matricial - FIRST */}
+      {/* Relatório Matricial */}
       <Collapsible open={showMatrix} onOpenChange={setShowMatrix}>
         <div className="flex items-center justify-between">
           <CollapsibleTrigger asChild>
@@ -225,7 +347,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
                   <TableRow>
                     <TableHead className="min-w-[200px] sticky left-0 bg-card z-10">Etapa / Fornecedor</TableHead>
                     {sortedMonths.map(m => (
-                      <TableHead key={m} className="w-28 text-center">{formatMonth(m)}</TableHead>
+                      <TableHead key={m} className="w-28 text-center whitespace-nowrap">{formatMonth(m)}</TableHead>
                     ))}
                     <TableHead className="w-32 text-center font-semibold">Total</TableHead>
                   </TableRow>
@@ -252,11 +374,11 @@ const FinanceiroTab = ({ obraId }: Props) => {
                         </div>
                       </TableCell>
                       {sortedMonths.map(m => (
-                        <TableCell key={m} className="text-center font-mono text-sm">
+                        <TableCell key={m} className="text-center font-mono text-sm whitespace-nowrap">
                           {row.values[m] ? fmt(row.values[m]) : "—"}
                         </TableCell>
                       ))}
-                      <TableCell className="text-center font-mono font-semibold">{fmt(row.total)}</TableCell>
+                      <TableCell className="text-center font-mono font-semibold whitespace-nowrap">{fmt(row.total)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -264,9 +386,9 @@ const FinanceiroTab = ({ obraId }: Props) => {
                   <TableRow className="font-bold">
                     <TableCell className="sticky left-0 bg-card z-10">Total Geral</TableCell>
                     {sortedMonths.map(m => (
-                      <TableCell key={m} className="text-center font-mono">{monthTotals[m] ? fmt(monthTotals[m]) : "—"}</TableCell>
+                      <TableCell key={m} className="text-center font-mono whitespace-nowrap">{monthTotals[m] ? fmt(monthTotals[m]) : "—"}</TableCell>
                     ))}
-                    <TableCell className="text-center font-mono">{fmt(grandTotal)}</TableCell>
+                    <TableCell className="text-center font-mono whitespace-nowrap">{fmt(grandTotal)}</TableCell>
                   </TableRow>
                 </TableFooter>
               </Table>
@@ -277,7 +399,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
         </CollapsibleContent>
       </Collapsible>
 
-      {/* Fluxo de Caixa - SECOND */}
+      {/* Fluxo de Caixa */}
       <Collapsible open={showFluxo} onOpenChange={setShowFluxo}>
         <div className="flex items-center justify-between">
           <CollapsibleTrigger asChild>
@@ -295,6 +417,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
                   <TableHead className="w-28">Vencimento</TableHead>
                   <TableHead>Descrição</TableHead>
                   <TableHead>Fornecedor</TableHead>
+                  <TableHead className="w-24">Categoria</TableHead>
                   <TableHead className="w-28">Valor</TableHead>
                   <TableHead className="w-20">Parcela</TableHead>
                   <TableHead className="w-20">Pago</TableHead>
@@ -302,13 +425,14 @@ const FinanceiroTab = ({ obraId }: Props) => {
               </TableHeader>
               <TableBody>
                 {fluxoCaixa.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma despesa com vencimento</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhuma despesa com vencimento</TableCell></TableRow>
                 ) : fluxoCaixa.map((d: any) => (
                   <TableRow key={d.id}>
-                    <TableCell>{new Date(d.data_vencimento).toLocaleDateString("pt-BR")}</TableCell>
+                    <TableCell className="whitespace-nowrap">{new Date(d.data_vencimento).toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell className="font-medium">{d.descricao}</TableCell>
                     <TableCell>{d.fornecedores?.nome || "—"}</TableCell>
-                    <TableCell>{fmt(d.valor_real || d.valor_previsto)}</TableCell>
+                    <TableCell><Badge variant="outline" className="text-xs whitespace-nowrap">{categoriaLabel[d.categoria] || d.categoria}</Badge></TableCell>
+                    <TableCell className="whitespace-nowrap">{fmt(d.valor_real || d.valor_previsto)}</TableCell>
                     <TableCell className="text-center font-mono">{d.parcela_numero ? `${d.parcela_numero}` : "—"}</TableCell>
                     <TableCell>
                       <Badge variant={d.pago ? "default" : "outline"} className={d.pago ? "bg-success text-success-foreground" : ""}>{d.pago ? "Sim" : "Não"}</Badge>
@@ -316,6 +440,15 @@ const FinanceiroTab = ({ obraId }: Props) => {
                   </TableRow>
                 ))}
               </TableBody>
+              {fluxoCaixa.length > 0 && (
+                <TableFooter>
+                  <TableRow className="font-semibold">
+                    <TableCell colSpan={4}>Total</TableCell>
+                    <TableCell className="whitespace-nowrap">{fmt(fluxoCaixa.reduce((s: number, d: any) => s + (d.valor_real || d.valor_previsto), 0))}</TableCell>
+                    <TableCell colSpan={2} />
+                  </TableRow>
+                </TableFooter>
+              )}
             </Table>
           </div>
         </CollapsibleContent>
