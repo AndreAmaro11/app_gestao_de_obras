@@ -10,7 +10,7 @@ export const useFornecedores = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("fornecedores")
-        .select("*")
+        .select("*, etapas(nome, obra_id), subetapas(nome)")
         .is("deleted_at", null)
         .order("nome");
       if (error) throw error;
