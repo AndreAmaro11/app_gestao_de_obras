@@ -51,6 +51,21 @@ export const useCreateObra = () => {
   });
 };
 
+export const useUpdateObra = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: { id: string } & Partial<TablesInsert<"obras">>) => {
+      const { data, error } = await supabase.from("obras").update(updates).eq("id", id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["obras"] });
+      qc.invalidateQueries({ queryKey: ["obra", data.id] });
+    },
+  });
+};
+
 export const useDeleteObra = () => {
   const qc = useQueryClient();
   return useMutation({

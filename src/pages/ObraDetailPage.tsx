@@ -8,6 +8,7 @@ import OrcamentoTab from "@/components/obras/OrcamentoTab";
 import DespesasTab from "@/components/obras/DespesasTab";
 import FinanceiroTab from "@/components/obras/FinanceiroTab";
 import ChecklistTab from "@/components/obras/ChecklistTab";
+import DocumentosTab from "@/components/obras/DocumentosTab";
 import { useObra } from "@/hooks/useObras";
 
 const padraoLabel: Record<string, string> = { baixo: "Baixo", medio: "Médio", alto: "Alto" };
@@ -43,12 +44,14 @@ const ObraDetailPage = () => {
           <TabsTrigger value="despesas">Despesas</TabsTrigger>
           <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
           <TabsTrigger value="checklist">Checklist</TabsTrigger>
+          <TabsTrigger value="documentos">Documentos</TabsTrigger>
         </TabsList>
         <TabsContent value="cronograma"><CronogramaTab obraId={obra.id} /></TabsContent>
         <TabsContent value="orcamento"><OrcamentoTab obraId={obra.id} /></TabsContent>
         <TabsContent value="despesas"><DespesasTab obraId={obra.id} /></TabsContent>
         <TabsContent value="financeiro"><FinanceiroTab obraId={obra.id} /></TabsContent>
         <TabsContent value="checklist"><ChecklistTab obraId={obra.id} /></TabsContent>
+        <TabsContent value="documentos"><DocumentosTab obraId={obra.id} /></TabsContent>
       </Tabs>
     </AppLayout>
   );

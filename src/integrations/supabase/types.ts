@@ -186,6 +186,57 @@ export type Database = {
           },
         ]
       }
+      documentos: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          id: string
+          nome: string
+          obra_id: string
+          pasta_id: string | null
+          tamanho: number | null
+          tipo_arquivo: string | null
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          nome: string
+          obra_id: string
+          pasta_id?: string | null
+          tamanho?: number | null
+          tipo_arquivo?: string | null
+          url: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          nome?: string
+          obra_id?: string
+          pasta_id?: string | null
+          tamanho?: number | null
+          tipo_arquivo?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documentos_obra_id_fkey"
+            columns: ["obra_id"]
+            isOneToOne: false
+            referencedRelation: "obras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_pasta_id_fkey"
+            columns: ["pasta_id"]
+            isOneToOne: false
+            referencedRelation: "pastas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       etapas: {
         Row: {
           deleted_at: string | null
@@ -292,6 +343,41 @@ export type Database = {
             columns: ["subetapa_id"]
             isOneToOne: false
             referencedRelation: "subetapas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      obra_imagens: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          id: string
+          is_capa: boolean
+          obra_id: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          is_capa?: boolean
+          obra_id: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          is_capa?: boolean
+          obra_id?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "obra_imagens_obra_id_fkey"
+            columns: ["obra_id"]
+            isOneToOne: false
+            referencedRelation: "obras"
             referencedColumns: ["id"]
           },
         ]
@@ -421,6 +507,48 @@ export type Database = {
             columns: ["obra_id"]
             isOneToOne: false
             referencedRelation: "obras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pastas: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          id: string
+          nome: string
+          obra_id: string
+          pasta_pai_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          nome: string
+          obra_id: string
+          pasta_pai_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          nome?: string
+          obra_id?: string
+          pasta_pai_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pastas_obra_id_fkey"
+            columns: ["obra_id"]
+            isOneToOne: false
+            referencedRelation: "obras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pastas_pasta_pai_id_fkey"
+            columns: ["pasta_pai_id"]
+            isOneToOne: false
+            referencedRelation: "pastas"
             referencedColumns: ["id"]
           },
         ]
