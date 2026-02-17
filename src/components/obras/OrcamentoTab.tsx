@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -7,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import StatusBadge from "@/components/StatusBadge";
-import { Plus, ArrowLeft, Check, ChevronRight, Pencil, Trash2, Upload, CheckCircle2, Circle } from "lucide-react";
+import { Plus, ArrowLeft, Check, ChevronRight, Pencil, Trash2, Upload, CheckCircle2, Circle, RefreshCw } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   useOrcamentos, useCreateOrcamento, useDeleteOrcamento,
   useOrcamentoItens, useCreateOrcamentoItem, useUpdateOrcamentoItem, useDeleteOrcamentoItem,
@@ -144,8 +146,9 @@ const OrcamentoRow = ({ orc, onClick, onDelete }: { orc: any; onClick: () => voi
 };
 
 // Row component that fetches selected cotacao for each item
-const ItemRowWithCotacao = ({ item, total, despesa, onEdit, onSelectItem, onDelete }: {
-  item: any; total: number; despesa: any; onEdit: (item: any) => void; onSelectItem: (id: string) => void; onDelete: (id: string) => void;
+const ItemRowWithCotacao = ({ item, total, despesa, selected, onToggleSelect, onEdit, onSelectItem, onDelete }: {
+  item: any; total: number; despesa: any; selected: boolean; onToggleSelect: () => void;
+  onEdit: (item: any) => void; onSelectItem: (id: string) => void; onDelete: (id: string) => void;
 }) => {
   const { data: cotacoes } = useCotacoes(item.id);
   const selectedCotacao = cotacoes?.find((c: any) => c.selecionado);
@@ -153,6 +156,9 @@ const ItemRowWithCotacao = ({ item, total, despesa, onEdit, onSelectItem, onDele
 
   return (
     <TableRow>
+      <TableCell className="w-10">
+        <Checkbox checked={selected} onCheckedChange={onToggleSelect} />
+      </TableCell>
       <TableCell className="text-muted-foreground">{(item.etapas as any)?.nome || "—"}</TableCell>
       <TableCell className="font-medium">{item.descricao}</TableCell>
       <TableCell>{item.unidade}</TableCell>
@@ -199,6 +205,8 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
   const createItem = useCreateOrcamentoItem();
   const updateItem = useUpdateOrcamentoItem();
   const deleteItem = useDeleteOrcamentoItem();
+  const selectCotacaoMut = useSelectCotacao();
+  const qc = useQueryClient();
   const { toast } = useToast();
   const [showAdd, setShowAdd] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
@@ -208,10 +216,11 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
   const [unidade, setUnidade] = useState("un");
   const [quantidade, setQuantidade] = useState("1");
   const [valorUnit, setValorUnit] = useState("0");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [regenerating, setRegenerating] = useState(false);
 
   const totalEstimado = itens?.reduce((sum: number, item: any) => sum + item.quantidade * item.valor_estimado_unitario, 0) || 0;
 
-  // Map despesas by item descricao (for orcamento-originated despesas)
   const despesaByItem = useMemo(() => {
     const map = new Map<string, any>();
     despesas?.filter((d: any) => d.origem === "orcamento" && !d.despesa_pai_id).forEach((d: any) => {
@@ -219,6 +228,66 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
     });
     return map;
   }, [despesas]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (!itens) return;
+    if (selectedIds.size === itens.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(itens.map(i => i.id)));
+    }
+  };
+
+  const handleRegenerate = async () => {
+    if (!itens) return;
+    const itemsToRegen = itens.filter(i => selectedIds.has(i.id));
+    setRegenerating(true);
+    let count = 0;
+    for (const item of itemsToRegen) {
+      // Find selected cotacao for this item
+      const { data: cotacoes } = await supabase
+        .from("cotacoes")
+        .select("*")
+        .eq("orcamento_item_id", item.id)
+        .eq("selecionado", true)
+        .is("deleted_at", null)
+        .single();
+      if (cotacoes) {
+        // Remove old despesas
+        await supabase.from("despesas")
+          .update({ deleted_at: new Date().toISOString() })
+          .eq("obra_id", obraId)
+          .eq("origem", "orcamento")
+          .eq("descricao", item.descricao);
+        // Create new
+        await supabase.from("despesas").insert({
+          obra_id: obraId,
+          etapa_id: item.etapa_id,
+          subetapa_id: item.subetapa_id || null,
+          fornecedor_id: cotacoes.fornecedor_id,
+          descricao: item.descricao,
+          categoria: "material" as const,
+          valor_previsto: cotacoes.valor_unitario * item.quantidade,
+          valor_real: 0,
+          pago: false,
+          origem: "orcamento" as const,
+        });
+        count++;
+      }
+    }
+    setRegenerating(false);
+    setSelectedIds(new Set());
+    toast({ title: `${count} despesa(s) re-gerada(s)` });
+    qc.invalidateQueries({ queryKey: ["despesas", obraId] });
+  };
 
   const resetForm = () => { setDescricao(""); setEtapaId(""); setSubetapaId(""); setUnidade("un"); setQuantidade("1"); setValorUnit("0"); setEditingItem(null); };
 
@@ -261,7 +330,15 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
           <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="h-4 w-4 mr-1" />Voltar</Button>
           <h2 className="text-lg font-semibold">Itens — {orcNome}</h2>
         </div>
-        <Button size="sm" variant="outline" onClick={() => { resetForm(); setShowAdd(true); }}><Plus className="h-4 w-4 mr-1" />Novo Item</Button>
+        <div className="flex items-center gap-2">
+          {selectedIds.size > 0 && (
+            <Button size="sm" variant="outline" disabled={regenerating} onClick={handleRegenerate}>
+              <RefreshCw className={`h-4 w-4 mr-1 ${regenerating ? "animate-spin" : ""}`} />
+              Re-gerar Despesas ({selectedIds.size})
+            </Button>
+          )}
+          <Button size="sm" variant="outline" onClick={() => { resetForm(); setShowAdd(true); }}><Plus className="h-4 w-4 mr-1" />Novo Item</Button>
+        </div>
       </div>
       <Dialog open={showAdd} onOpenChange={(v) => { setShowAdd(v); if (!v) resetForm(); }}>
         <DialogContent>
@@ -291,6 +368,9 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <Checkbox checked={itens?.length ? selectedIds.size === itens.length : false} onCheckedChange={toggleAll} />
+              </TableHead>
               <TableHead>Etapa</TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead className="w-20">Unidade</TableHead>
@@ -304,21 +384,20 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
             ) : !itens?.length ? (
-              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum item</TableCell></TableRow>
+              <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Nenhum item</TableCell></TableRow>
             ) : (
               <>
                 {itens.map(item => {
                   const total = item.quantidade * item.valor_estimado_unitario;
                   const despesa = despesaByItem.get(item.descricao);
                   return (
-                    <ItemRowWithCotacao key={item.id} item={item} total={total} despesa={despesa} onEdit={openEdit} onSelectItem={onSelectItem} onDelete={(id) => deleteItem.mutate({ id, orcamento_id: orcamentoId })} />
+                    <ItemRowWithCotacao key={item.id} item={item} total={total} despesa={despesa} selected={selectedIds.has(item.id)} onToggleSelect={() => toggleSelect(item.id)} onEdit={openEdit} onSelectItem={onSelectItem} onDelete={(id) => deleteItem.mutate({ id, orcamento_id: orcamentoId })} />
                   );
                 })}
-                {/* Totalizador */}
                 <TableRow className="bg-muted/30 font-semibold">
-                  <TableCell colSpan={5} className="text-right">Total Estimado</TableCell>
+                  <TableCell colSpan={6} className="text-right">Total Estimado</TableCell>
                   <TableCell>R$ {fmt(totalEstimado)}</TableCell>
                   <TableCell colSpan={3} />
                 </TableRow>
