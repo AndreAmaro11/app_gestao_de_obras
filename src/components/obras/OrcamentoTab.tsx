@@ -200,14 +200,24 @@ const CotacaoValueReporter = ({ itemId, quantidade, onValue }: { itemId: string;
 };
 
 // Row component that fetches selected cotacao for each item
-const ItemRowWithCotacao = ({ item, total, despesa, selected, onToggleSelect, onEdit, onSelectItem, onDelete }: {
+const ItemRowWithCotacao = ({ item, total, despesa, selected, onToggleSelect, onEdit, onSelectItem, onDelete, onCotacaoValue, onCotacaoCount }: {
   item: any; total: number; despesa: any; selected: boolean; onToggleSelect: () => void;
   onEdit: (item: any) => void; onSelectItem: (id: string) => void; onDelete: (id: string) => void;
+  onCotacaoValue?: (id: string, v: number) => void;
+  onCotacaoCount?: (id: string, n: number) => void;
 }) => {
   const { data: cotacoes } = useCotacoes(item.id);
   const selectedCotacao = cotacoes?.find((c: any) => c.selecionado);
   const valorSelecionado = selectedCotacao ? selectedCotacao.valor_unitario * item.quantidade : null;
   const numCotacoes = cotacoes?.length || 0;
+
+  useEffect(() => {
+    onCotacaoValue?.(item.id, valorSelecionado ?? 0);
+  }, [valorSelecionado]);
+
+  useEffect(() => {
+    onCotacaoCount?.(item.id, numCotacoes);
+  }, [numCotacoes]);
 
   return (
     <TableRow>
@@ -389,8 +399,22 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
     } catch (err: any) { toast({ title: "Erro", description: err.message, variant: "destructive" }); }
   };
 
-  // Sort
-  const { sorted, sortField, sortDir, toggleSort } = useSort(itens);
+  // Track cotacao values per item (for sortable Valor Selecionado)
+  const [cotacaoValues, setCotacaoValues] = useState<Record<string, number>>({});
+  const [cotacaoCounts, setCotacaoCounts] = useState<Record<string, number>>({});
+
+  // Sort on enriched data
+  const enriched = useMemo(() => {
+    if (!itens) return [];
+    return itens.map(item => ({
+      ...item,
+      _totalEst: item.quantidade * item.valor_estimado_unitario,
+      _valorSelecionado: cotacaoValues[item.id] ?? 0,
+      _numCotacoes: cotacaoCounts[item.id] ?? 0,
+    }));
+  }, [itens, cotacaoValues, cotacaoCounts]);
+
+  const { sorted, sortField, sortDir, toggleSort } = useSort(enriched);
 
   // Build groups by etapa
   const groups = useMemo(() => {
@@ -469,9 +493,9 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
               <TableHead className="w-20"><SortableHeader label="Unidade" field="unidade" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead className="w-20"><SortableHeader label="Qtde" field="quantidade" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead className="w-32"><SortableHeader label="Estimado Unit." field="valor_estimado_unitario" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
-              <TableHead className="w-32">Total Est.</TableHead>
-              <TableHead className="w-32">Valor Selecionado</TableHead>
-              <TableHead className="w-20">Cotações</TableHead>
+              <TableHead className="w-32"><SortableHeader label="Total Est." field="_totalEst" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
+              <TableHead className="w-32"><SortableHeader label="Vlr. Selecionado" field="_valorSelecionado" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
+              <TableHead className="w-20"><SortableHeader label="Cotações" field="_numCotacoes" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead className="w-24">Despesa</TableHead>
               <TableHead className="w-24 text-right">Ações</TableHead>
             </TableRow>
@@ -508,7 +532,10 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
                         const total = item.quantidade * item.valor_estimado_unitario;
                         const despesa = despesaByItem.get(item.descricao);
                         return (
-                          <ItemRowWithCotacao key={item.id} item={item} total={total} despesa={despesa} selected={selectedIds.has(item.id)} onToggleSelect={() => toggleSelect(item.id)} onEdit={openEdit} onSelectItem={onSelectItem} onDelete={(id) => deleteItem.mutate({ id, orcamento_id: orcamentoId })} />
+                          <ItemRowWithCotacao key={item.id} item={item} total={total} despesa={despesa} selected={selectedIds.has(item.id)} onToggleSelect={() => toggleSelect(item.id)} onEdit={openEdit} onSelectItem={onSelectItem} onDelete={(id) => deleteItem.mutate({ id, orcamento_id: orcamentoId })}
+                            onCotacaoValue={(id, v) => setCotacaoValues(prev => prev[id] === v ? prev : { ...prev, [id]: v })}
+                            onCotacaoCount={(id, n) => setCotacaoCounts(prev => prev[id] === n ? prev : { ...prev, [id]: n })}
+                          />
                         );
                       })}
                     </>
@@ -527,7 +554,10 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
                   const total = item.quantidade * item.valor_estimado_unitario;
                   const despesa = despesaByItem.get(item.descricao);
                   return (
-                    <ItemRowWithCotacao key={item.id} item={item} total={total} despesa={despesa} selected={selectedIds.has(item.id)} onToggleSelect={() => toggleSelect(item.id)} onEdit={openEdit} onSelectItem={onSelectItem} onDelete={(id) => deleteItem.mutate({ id, orcamento_id: orcamentoId })} />
+                    <ItemRowWithCotacao key={item.id} item={item} total={total} despesa={despesa} selected={selectedIds.has(item.id)} onToggleSelect={() => toggleSelect(item.id)} onEdit={openEdit} onSelectItem={onSelectItem} onDelete={(id) => deleteItem.mutate({ id, orcamento_id: orcamentoId })}
+                      onCotacaoValue={(id, v) => setCotacaoValues(prev => prev[id] === v ? prev : { ...prev, [id]: v })}
+                      onCotacaoCount={(id, n) => setCotacaoCounts(prev => prev[id] === n ? prev : { ...prev, [id]: n })}
+                    />
                   );
                 })}
                 <TableRow className="bg-muted/30 font-semibold">
