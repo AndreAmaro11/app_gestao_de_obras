@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import StatusBadge from "@/components/StatusBadge";
-import { Plus, ArrowLeft, Check, ChevronRight, Pencil, Trash2, Upload, CheckCircle2, Circle, RefreshCw } from "lucide-react";
+import { Plus, ArrowLeft, Check, ChevronRight, ChevronDown, Pencil, Trash2, Upload, CheckCircle2, Circle, RefreshCw, Layers } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SortableHeader, useSort } from "@/components/DataToolbar";
 import {
@@ -273,6 +273,9 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
   const [valorUnit, setValorUnit] = useState("0");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [regenerating, setRegenerating] = useState(false);
+  const [agrupado, setAgrupado] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
 
   const totalEstimado = itens?.reduce((sum: number, item: any) => sum + item.quantidade * item.valor_estimado_unitario, 0) || 0;
 
@@ -291,6 +294,17 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
       return next;
     });
   };
+
+  const toggleGroup = (key: string) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
+
+
 
   const toggleAll = () => {
     if (!itens) return;
@@ -378,6 +392,21 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
   // Sort
   const { sorted, sortField, sortDir, toggleSort } = useSort(itens);
 
+  // Build groups by etapa
+  const groups = useMemo(() => {
+    if (!sorted) return [];
+    const map = new Map<string, { label: string; items: any[]; totalEst: number }>();
+    for (const item of sorted) {
+      const etapaNome = (item.etapas as any)?.nome || "Sem etapa";
+      const key = `${item.etapa_id || "__sem__"}`;
+      if (!map.has(key)) map.set(key, { label: etapaNome, items: [], totalEst: 0 });
+      const g = map.get(key)!;
+      g.items.push(item);
+      g.totalEst += item.quantidade * item.valor_estimado_unitario;
+    }
+    return Array.from(map.entries()).map(([key, v]) => ({ key, ...v }));
+  }, [sorted]);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -392,9 +421,18 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
               Re-gerar Despesas ({selectedIds.size})
             </Button>
           )}
+          <Button
+            size="sm"
+            variant={agrupado ? "secondary" : "outline"}
+            onClick={() => setAgrupado(v => !v)}
+          >
+            <Layers className="h-4 w-4 mr-1" />
+            {agrupado ? "Desagrupar" : "Agrupar"}
+          </Button>
           <Button size="sm" variant="outline" onClick={() => { resetForm(); setShowAdd(true); }}><Plus className="h-4 w-4 mr-1" />Novo Item</Button>
         </div>
       </div>
+
       <Dialog open={showAdd} onOpenChange={(v) => { setShowAdd(v); if (!v) resetForm(); }}>
         <DialogContent>
           <DialogHeader><DialogTitle>{editingItem ? "Editar Item" : "Novo Item"}</DialogTitle></DialogHeader>
@@ -443,6 +481,46 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
               <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
             ) : !sorted?.length ? (
               <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">Nenhum item</TableCell></TableRow>
+            ) : agrupado ? (
+              <>
+                {groups.map(group => {
+                  const isCollapsed = collapsedGroups.has(group.key);
+                  return (
+                    <>
+                      {/* Group header */}
+                      <TableRow
+                        key={`gh-${group.key}`}
+                        className="bg-muted/40 cursor-pointer hover:bg-muted/60"
+                        onClick={() => toggleGroup(group.key)}
+                      >
+                        <TableCell className="py-2 px-2 w-10">
+                          {isCollapsed ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                        </TableCell>
+                        <TableCell colSpan={5} className="py-2 font-semibold">{group.label}</TableCell>
+                        <TableCell className="py-2 font-semibold whitespace-nowrap">R$ {fmt(group.totalEst)}</TableCell>
+                        <TableCell className="py-2">
+                          <TotalValorSelecionado itens={group.items} />
+                        </TableCell>
+                        <TableCell colSpan={3} />
+                      </TableRow>
+                      {/* Group items */}
+                      {!isCollapsed && group.items.map((item: any) => {
+                        const total = item.quantidade * item.valor_estimado_unitario;
+                        const despesa = despesaByItem.get(item.descricao);
+                        return (
+                          <ItemRowWithCotacao key={item.id} item={item} total={total} despesa={despesa} selected={selectedIds.has(item.id)} onToggleSelect={() => toggleSelect(item.id)} onEdit={openEdit} onSelectItem={onSelectItem} onDelete={(id) => deleteItem.mutate({ id, orcamento_id: orcamentoId })} />
+                        );
+                      })}
+                    </>
+                  );
+                })}
+                <TableRow className="bg-muted/30 font-semibold">
+                  <TableCell colSpan={6} className="text-right">Total Geral</TableCell>
+                  <TableCell className="whitespace-nowrap">R$ {fmt(totalEstimado)}</TableCell>
+                  <TableCell><TotalValorSelecionado itens={sorted} /></TableCell>
+                  <TableCell colSpan={3} />
+                </TableRow>
+              </>
             ) : (
               <>
                 {sorted.map((item: any) => {
@@ -455,14 +533,13 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
                 <TableRow className="bg-muted/30 font-semibold">
                   <TableCell colSpan={6} className="text-right">Total</TableCell>
                   <TableCell className="whitespace-nowrap">R$ {fmt(totalEstimado)}</TableCell>
-                  <TableCell>
-                    <TotalValorSelecionado itens={sorted} />
-                  </TableCell>
+                  <TableCell><TotalValorSelecionado itens={sorted} /></TableCell>
                   <TableCell colSpan={3} />
                 </TableRow>
               </>
             )}
           </TableBody>
+
         </Table>
       </div>
     </div>
