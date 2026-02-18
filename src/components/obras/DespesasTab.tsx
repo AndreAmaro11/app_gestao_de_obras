@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Layers } from "lucide-react";
 import { useDespesas, useCreateDespesa, useUpdateDespesa, useDeleteDespesa } from "@/hooks/useDespesas";
 import { useEtapas } from "@/hooks/useEtapas";
 import { useSubetapas } from "@/hooks/useSubetapas";
@@ -15,6 +15,7 @@ import { useFornecedores, useCreateFornecedor } from "@/hooks/useFornecedores";
 import { useToast } from "@/hooks/use-toast";
 import { DataToolbar, SortableHeader, useSort, useSearch } from "@/components/DataToolbar";
 import { Textarea } from "@/components/ui/textarea";
+
 
 const categoriaLabel: Record<string, string> = {
   material: "Material", mao_de_obra: "Mão de Obra", servico: "Serviço",
@@ -70,6 +71,9 @@ const DespesasTab = ({ obraId }: Props) => {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [showNewFornecedor, setShowNewFornecedor] = useState(false);
   const [newForn, setNewForn] = useState({ nome: "", nome_fantasia: "", cnpj: "", telefone: "", email: "", endereco: "", observacao: "", tipo: "misto" });
+  const [agrupado, setAgrupado] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
 
   const resetForm = () => {
     setDescricao(""); setEtapaId(""); setSubetapaId(""); setFornecedorId("");
@@ -96,7 +100,15 @@ const DespesasTab = ({ obraId }: Props) => {
     });
   };
 
-  // Filter: hide child parcelas from main list
+  const toggleGroup = (key: string) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
+
   const mainDespesas = despesas?.filter((d: any) => !d.despesa_pai_id) || [];
   const childDespesas = despesas?.filter((d: any) => !!d.despesa_pai_id) || [];
 
@@ -117,6 +129,25 @@ const DespesasTab = ({ obraId }: Props) => {
 
   const totalPrevisto = sorted.reduce((s: number, d: any) => s + d.valor_previsto, 0);
   const totalReal = sorted.reduce((s: number, d: any) => s + d.valor_real, 0);
+
+  // Build groups by etapa + subetapa for agrupado view
+  const groups = useMemo(() => {
+    const map = new Map<string, { label: string; items: any[]; totalPrev: number; totalReal: number }>();
+    for (const d of sorted) {
+      const etapaNome = (d.etapas as any)?.nome || "Sem etapa";
+      const subetapaNome = (d.subetapas as any)?.nome;
+      const key = `${d.etapa_id || "__sem__"}___${d.subetapa_id || "__sem__"}`;
+      const label = subetapaNome ? `${etapaNome} › ${subetapaNome}` : etapaNome;
+      if (!map.has(key)) map.set(key, { label, items: [], totalPrev: 0, totalReal: 0 });
+      const g = map.get(key)!;
+      g.items.push(d);
+      g.totalPrev += d.valor_previsto;
+      g.totalReal += d.valor_real;
+    }
+    return Array.from(map.entries()).map(([key, v]) => ({ key, ...v }));
+  }, [sorted]);
+
+
 
   const handleTogglePago = async (d: any) => {
     try {
@@ -156,8 +187,19 @@ const DespesasTab = ({ obraId }: Props) => {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-semibold">Despesas</h2>
-        <Button size="sm" onClick={() => { resetForm(); setShowDialog(true); }}><Plus className="h-4 w-4 mr-1" />Nova Despesa</Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant={agrupado ? "secondary" : "outline"}
+            onClick={() => setAgrupado(v => !v)}
+          >
+            <Layers className="h-4 w-4 mr-1" />
+            {agrupado ? "Desagrupar" : "Agrupar"}
+          </Button>
+          <Button size="sm" onClick={() => { resetForm(); setShowDialog(true); }}><Plus className="h-4 w-4 mr-1" />Nova Despesa</Button>
+        </div>
       </div>
+
 
       <Dialog open={showNewFornecedor} onOpenChange={setShowNewFornecedor}>
         <DialogContent className="max-w-lg">
@@ -323,6 +365,63 @@ const DespesasTab = ({ obraId }: Props) => {
               <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
             ) : !sorted.length ? (
               <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-8">{search ? "Nenhum resultado" : "Nenhuma despesa"}</TableCell></TableRow>
+            ) : agrupado ? (
+              <>
+                {groups.map(group => {
+                  const isCollapsed = collapsedGroups.has(group.key);
+                  const totalPagas = group.items.filter((d: any) => d.pago).length;
+                  return (
+                    <>
+                      {/* Group header */}
+                      <TableRow
+                        key={`gh-${group.key}`}
+                        className="bg-muted/40 cursor-pointer hover:bg-muted/60"
+                        onClick={() => toggleGroup(group.key)}
+                      >
+                        <TableCell className="py-2 px-2">
+                          {isCollapsed ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                        </TableCell>
+                        <TableCell colSpan={5} className="py-2 font-semibold">{group.label}</TableCell>
+                        <TableCell className="py-2 font-semibold whitespace-nowrap">R$ {fmt(group.totalPrev)}</TableCell>
+                        <TableCell className="py-2 font-semibold whitespace-nowrap">R$ {fmt(group.totalReal)}</TableCell>
+                        <TableCell className="py-2" colSpan={2}>
+                          <Badge variant="secondary" className="text-xs">{totalPagas}/{group.items.length} pagas</Badge>
+                        </TableCell>
+                        <TableCell colSpan={2} />
+                      </TableRow>
+                      {/* Group rows */}
+                      {!isCollapsed && group.items.map((d: any) => {
+                        const children = getChildren(d.id);
+                        const hasChildren = children.length > 0;
+                        const hasParcelas = (d.parcelas && d.parcelas > 1);
+                        const canExpand = hasChildren || hasParcelas;
+                        const isExpanded = expandedRows.has(d.id);
+                        return (
+                          <ExpandableRow
+                            key={d.id}
+                            d={d}
+                            children={children}
+                            canExpand={canExpand}
+                            hasChildren={hasChildren}
+                            isExpanded={isExpanded}
+                            onToggleExpand={() => toggleExpand(d.id)}
+                            onTogglePago={handleTogglePago}
+                            onEdit={openEdit}
+                            onDelete={() => deleteDespesa.mutate({ id: d.id, obra_id: obraId })}
+                          />
+                        );
+                      })}
+                    </>
+                  );
+                })}
+                <TableRow className="bg-muted/30 font-semibold">
+                  <TableCell />
+                  <TableCell colSpan={5} className="text-right">Total Geral</TableCell>
+                  <TableCell className="whitespace-nowrap">R$ {fmt(totalPrevisto)}</TableCell>
+                  <TableCell className="whitespace-nowrap">R$ {fmt(totalReal)}</TableCell>
+                  <TableCell colSpan={4} />
+                </TableRow>
+              </>
             ) : (
               <>
                 {sorted.map((d: any) => {
@@ -356,6 +455,7 @@ const DespesasTab = ({ obraId }: Props) => {
               </>
             )}
           </TableBody>
+
         </Table>
       </div>
     </div>
