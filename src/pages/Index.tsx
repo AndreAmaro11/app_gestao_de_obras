@@ -6,6 +6,7 @@ import { useObras, useDeleteObra } from "@/hooks/useObras";
 import { useToast } from "@/hooks/use-toast";
 import { DataToolbar, useSearch } from "@/components/DataToolbar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Building2 } from "lucide-react";
 
 const Index = () => {
   const { data: obras, isLoading } = useObras();
@@ -31,18 +32,21 @@ const Index = () => {
 
   return (
     <AppLayout>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Minhas Obras</h1>
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">Minhas Obras</h1>
+          <p className="text-muted-foreground mt-1">Gerencie todos os seus projetos em um só lugar</p>
+        </div>
         <NovaObraDialog />
       </div>
-      <div className="mb-4">
+      <div className="mb-6">
         <DataToolbar
           searchPlaceholder="Buscar obra..."
           searchValue={search}
           onSearchChange={setSearch}
         >
           <Select value={filtroPadrao} onValueChange={setFiltroPadrao}>
-            <SelectTrigger className="w-36 h-9"><SelectValue placeholder="Padrão" /></SelectTrigger>
+            <SelectTrigger className="w-36 h-9 rounded-lg"><SelectValue placeholder="Padrão" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos</SelectItem>
               <SelectItem value="baixo">Baixo</SelectItem>
@@ -53,11 +57,23 @@ const Index = () => {
         </DataToolbar>
       </div>
       {isLoading ? (
-        <p className="text-center text-muted-foreground py-12">Carregando...</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="rounded-xl bg-muted animate-pulse h-72" />
+          ))}
+        </div>
       ) : !filtered.length ? (
-        <p className="text-center text-muted-foreground py-12">{search ? "Nenhuma obra encontrada" : "Nenhuma obra cadastrada"}</p>
+        <div className="text-center py-20 space-y-4">
+          <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center mx-auto">
+            <Building2 className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <p className="text-muted-foreground text-lg">
+            {search ? "Nenhuma obra encontrada" : "Nenhuma obra cadastrada"}
+          </p>
+          {!search && <p className="text-muted-foreground text-sm">Clique em "Nova Obra" para começar</p>}
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map((obra: any) => (
             <ObraCard key={obra.id} obra={obra} onDelete={handleDelete} />
           ))}
