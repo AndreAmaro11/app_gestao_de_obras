@@ -1,158 +1,122 @@
 
-# Plano Geral: Melhorias no Sistema de Gestao de Obras
 
-Este e um plano extenso dividido em 5 fases para implementacao gradual. Cada fase pode ser aprovada e implementada separadamente.
+# Redesign UX da Tela de Obra
 
----
+## Problema Atual
 
-## FASE 1: Obras - Cards, Edicao e Imagens
+A tela de detalhes da obra tem uma hierarquia confusa:
+- Banner com gradiente no topo
+- 4 cards de KPIs logo abaixo
+- Abas (Cronograma, Orcamento, etc.) depois dos cards
+- Dentro do Cronograma, o Gantt fica misturado com a tabela de etapas
+- O usuario precisa rolar bastante para chegar ao conteudo real
+- A sidebar so tem "Obras" e "Fornecedores" -- os itens de navegacao da obra (Cronograma, Orcamento, Despesas, etc.) ja estao definidos no codigo mas nunca sao usados
 
-### 1.1 Tela inicial em Cards (Index.tsx)
-- Remover tabela atual
-- Criar grid de cards responsivos (3 colunas desktop, 2 tablet, 1 mobile)
-- Cada card exibe: imagem de capa (ou placeholder), nome, status/padrao, percentual de execucao (barra de progresso), botoes editar/excluir
+## Solucao Proposta
 
-### 1.2 Editar Obra
-- Criar componente `EditarObraDialog` com todos os campos existentes (nome, metragem, padrao, datas)
-- Adicionar hook `useUpdateObra` em `useObras.ts`
+Reorganizar a pagina com foco em produtividade, usando a sidebar como navegacao principal da obra e simplificando o conteudo visivel.
 
-### 1.3 Upload de Imagens da Obra
-- **Migracao**: Criar tabela `obra_imagens` (id, obra_id, url, is_capa boolean default false, created_at, deleted_at)
-- **Storage**: Criar bucket `obra-imagens` (publico) com RLS para INSERT/SELECT/DELETE pelo owner
-- Hook `useObraImagens` para CRUD
-- Na tela de edicao: area de upload multiplo, galeria com opcao de definir capa
-- Na listagem: exibir imagem de capa no card
+### 1. Sidebar Contextual para a Obra
 
-### 1.4 Modulo Documentacoes da Obra
-- **Migracao**: Criar tabela `documentos` (id, obra_id, pasta_id nullable, nome, url, tipo_arquivo, tamanho, created_at, deleted_at)
-- **Migracao**: Criar tabela `pastas` (id, obra_id, pasta_pai_id nullable, nome, created_at, deleted_at)
-- **Storage**: Criar bucket `obra-documentos` (privado) com RLS
-- Nova aba "Documentos" em ObraDetailPage
-- Componente com navegacao em arvore de pastas, upload de arquivos, download, exclusao
-- RLS: apenas o dono da obra acessa
+Quando o usuario estiver dentro de uma obra (`/obra/:id`), a sidebar mostra:
+- Link "Voltar para Obras" no topo
+- Nome da obra como titulo
+- Mini barra de progresso
+- Itens de navegacao: **Dashboard, Cronograma, Orcamento, Despesas, Financeiro, Checklist, Documentos**
+- Cada item navega via query param ou sub-rota (ex: `/obra/:id?tab=cronograma`)
 
----
+Os itens `obraNavItems` ja existem no `AppLayout.tsx` mas nao sao renderizados -- vamos ativa-los.
 
-## FASE 2: Cronograma - Correcao do Gantt
+### 2. Nova Aba "Dashboard" (Visao Geral)
 
-### 2.1 Corrigir calculo do Gantt
-- Incluir subetapas na visualizacao Gantt (barras menores/indentadas)
-- Corrigir calculo de `obraStart`/`obraEnd` para considerar tambem datas de subetapas
-- Tratar etapas sem datas (nao renderizar barra, ou exibir aviso)
+Criar uma aba dedicada de Dashboard que concentra:
+- Header compacto (nome + badge de status + progresso em uma linha)
+- 4 KPI cards (como estao, porem menores e em uma unica faixa)
+- 3 graficos em grid 2 colunas:
+  - Barras: Orcado vs Realizado por etapa
+  - Linha: Evolucao financeira mensal
+  - Donut: Distribuicao por categoria
+- Resumo rapido de atividades recentes
 
-### 2.2 Dependencias
-- Atualmente o campo `dependencia` existe na tabela `etapas` mas nao e usado na UI
-- Adicionar select de dependencia no formulario de etapa
-- No Gantt, desenhar setas/linhas conectando etapas dependentes
+Isso separa a "visao gerencial" do "trabalho operacional" (Cronograma, Despesas, etc.)
 
-### 2.3 Atualizacao automatica
-- Ao alterar percentual/status de etapa, recalcular percentual geral da obra
-- Sincronizar datas com orcamento: ao aprovar orcamento, atualizar status da etapa vinculada
+### 3. Header Simplificado nas Abas Operacionais
 
----
+Quando o usuario esta em Cronograma, Despesas, etc.:
+- Header compacto: nome da obra + progresso inline (sem banner grande)
+- O conteudo da aba ocupa toda a area visivel
+- Sem KPI cards repetidos
 
-## FASE 3: Orcamento - Melhorias Completas
+### 4. Cronograma - Separar Tabela e Gantt
 
-### 3.1 Lista de Orcamentos
-- Adicionar coluna "Valor Estimado Total" (soma dos itens)
-- Adicionar botao de deletar orcamento (ja existe `useDeleteOrcamento`)
+Dentro do Cronograma, adicionar sub-visualizacoes:
+- Toggle "Tabela | Gantt" (botoes de alternancia, nao ambos ao mesmo tempo)
+- Na visao Tabela: a tabela de etapas como esta
+- Na visao Gantt: o grafico Gantt em tela cheia com mais espaco
 
-### 3.2 Itens do Orcamento
-- Adicionar colunas: Valor Selecionado (da cotacao vencedora), Fornecedor Escolhido
-- Totalizador geral: soma estimado, soma selecionado
+### 5. Melhorias Visuais Gerais
 
-### 3.3 Cotacoes - Melhorias
-- Adicionar colunas na tabela: Observacao, Telefone do fornecedor
-- Botao de deletar cotacao (soft delete)
-- Upload de arquivo anexo na cotacao:
-  - **Migracao**: Adicionar coluna `arquivo_url` em `cotacoes`
-  - **Storage**: Usar bucket `obra-documentos` ou criar `cotacao-arquivos`
-
-### 3.4 Selecao de Cotacao gera Despesa automaticamente
-- Ao clicar "Selecionar" em uma cotacao, gerar despesa automaticamente
-- Exibir toast: "Despesa gerada com sucesso."
-- Remover botao "Aprovar Orcamento" (a geracao e por item agora)
-
-### 3.5 Cadastro Rapido de Fornecedor - Campos Completos
-- Expandir o dialog de cadastro rapido para incluir: Razao Social (nome), Nome Fantasia, CNPJ/CPF, Telefone, E-mail, Endereco, Observacao, Categoria
-- **Migracao**: Adicionar colunas em `fornecedores`: `nome_fantasia`, `endereco`, `observacao`
-
----
-
-## FASE 4: Fluxo de Caixa - Parcelamento e Relatorio
-
-### 4.1 Logica de parcelamento automatico
-- Ao criar/editar despesa com parcelas > 1 e data_vencimento definida:
-  - Gerar N registros de parcela automaticamente
-  - Cada parcela = valor_real / N
-  - Datas incrementais mensais (mesmo dia)
-- **Migracao**: Adicionar coluna `parcela_numero` e `despesa_pai_id` em `despesas` para rastrear parcelas filhas
-- No fluxo de caixa, exibir cada parcela individualmente
-
-### 4.2 Relatorio estruturado de Fluxo de Caixa
-- Criar componente `RelatorioFluxoCaixa`
-- Estrutura matricial: Colunas = Meses/Anos, Linhas = Etapa > Subetapa > Fornecedor
-- Totais por mes, ano, fornecedor e etapa
-- Exibir no FinanceiroTab como nova secao
-
----
-
-## FASE 5: Padronizacao do Sistema
-
-### 5.1 Componente reutilizavel de filtros
-- Criar `DataToolbar` com: busca rapida (texto), filtros por campo, ordenacao crescente/decrescente
-- Aplicar em: Obras, Fornecedores, Despesas, Orcamentos, Fluxo de Caixa
-
-### 5.2 Ordenacao de colunas
-- Ao clicar no cabecalho da tabela, ordenar asc/desc
-- Indicador visual (seta) na coluna ativa
-
-### 5.3 Melhor organizacao visual
-- Padding e espacamento consistentes
-- Cores de status uniformes em todos os modulos
+- Transicao suave ao trocar de aba (fade-in no conteudo)
+- Cards de KPI mais compactos com micro-graficos (sparklines opcionais)
+- Breadcrumb atualizado: Obras > Nome da Obra > Aba Atual
 
 ---
 
 ## Detalhes Tecnicos
 
-### Migracoes SQL necessarias (resumo)
+### Arquivos a modificar:
+
+1. **`src/components/AppLayout.tsx`**
+   - Detectar se a rota e `/obra/:id` usando `useLocation`
+   - Quando dentro de uma obra, renderizar os `obraNavItems` na sidebar (ja definidos mas nao usados)
+   - Passar a tab ativa via search params (`?tab=cronograma`)
+   - Adicionar link "Voltar" e nome da obra no topo da secao
+
+2. **`src/pages/ObraDetailPage.tsx`**
+   - Ler a tab ativa de `searchParams` em vez de estado interno do componente Tabs
+   - Remover o banner grande e KPIs do topo de todas as abas
+   - Adicionar header compacto (uma linha: nome + progresso + badge)
+   - Criar nova tab "dashboard" como defaultValue
+   - Remover o componente `TabsList` visivel (a navegacao agora vem da sidebar)
+
+3. **`src/components/ObraDashboardHeader.tsx`** (renomear para `ObraDashboardTab.tsx`)
+   - Transformar em aba completa de Dashboard
+   - Manter KPI cards
+   - Adicionar 3 graficos usando Recharts (ja instalado):
+     - `BarChart`: Orcado vs Realizado por etapa
+     - `LineChart`: Evolucao financeira mensal
+     - `PieChart` (donut): Distribuicao por categoria de despesa
+   - Layout em grid responsivo
+
+4. **`src/components/obras/CronogramaTab.tsx`**
+   - Adicionar toggle "Tabela | Gantt" no topo
+   - Mostrar apenas uma visualizacao por vez
+   - Dar mais espaco ao Gantt quando selecionado
+
+5. **`src/components/obras/GanttChart.tsx`**
+   - Ajustar para modo "full-width" quando exibido sozinho
+   - Melhorar legibilidade com barras maiores
+
+### Fluxo de navegacao:
 
 ```text
-1. Tabela obra_imagens (id, obra_id FK, url, is_capa, created_at, deleted_at)
-2. Tabela pastas (id, obra_id FK, pasta_pai_id FK self, nome, created_at, deleted_at)
-3. Tabela documentos (id, obra_id FK, pasta_id FK, nome, url, tipo_arquivo, tamanho, created_at, deleted_at)
-4. Storage bucket: obra-imagens (publico)
-5. Storage bucket: obra-documentos (privado)
-6. Coluna arquivo_url em cotacoes
-7. Colunas nome_fantasia, endereco, observacao em fornecedores
-8. Colunas parcela_numero, despesa_pai_id em despesas
+Sidebar (dentro de /obra/:id)
++----------------------------+
+| <- Voltar para Obras       |
+| [Nome da Obra]             |
+| [====== 65% ======]        |
+|                            |
+| * Dashboard        (ativo) |
+|   Cronograma               |
+|   Orcamento                |
+|   Despesas                 |
+|   Financeiro               |
+|   Checklist                |
+|   Documentos               |
++----------------------------+
 ```
 
-### Novos arquivos
-- `src/components/EditarObraDialog.tsx`
-- `src/components/obras/DocumentosTab.tsx`
-- `src/components/DataToolbar.tsx`
-- `src/hooks/useObraImagens.ts`
-- `src/hooks/useDocumentos.ts`
+### Dependencias:
+- Recharts (ja instalado) para os graficos do Dashboard
+- Nenhuma nova dependencia necessaria
 
-### Arquivos modificados
-- `src/pages/Index.tsx` -- cards em vez de tabela
-- `src/pages/ObraDetailPage.tsx` -- nova aba Documentos
-- `src/hooks/useObras.ts` -- useUpdateObra
-- `src/components/obras/CronogramaTab.tsx` -- correcao Gantt
-- `src/components/obras/OrcamentoTab.tsx` -- totais, delete, selecao gera despesa
-- `src/components/obras/FinanceiroTab.tsx` -- relatorio matricial
-- `src/components/obras/DespesasTab.tsx` -- logica parcelas
-- `src/pages/FornecedoresPage.tsx` -- novos campos, toolbar
-- `src/hooks/useFornecedores.ts` -- novos campos
-- `src/hooks/useDespesas.ts` -- parcelas
-- `src/hooks/useOrcamentos.ts` -- selecao gera despesa
-
-### Ordem de implementacao sugerida
-1. Fase 1 (Obras) -- base visual e storage
-2. Fase 3 (Orcamento) -- melhorias de fluxo
-3. Fase 4 (Fluxo de Caixa) -- parcelamento
-4. Fase 2 (Cronograma) -- correcoes Gantt
-5. Fase 5 (Padronizacao) -- polimento final
-
-**Nota**: Devido ao tamanho, recomendo implementar uma fase por vez para garantir estabilidade. Ao aprovar, iniciarei pela Fase 1.
