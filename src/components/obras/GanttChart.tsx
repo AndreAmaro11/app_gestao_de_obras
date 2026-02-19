@@ -122,9 +122,10 @@ const DependencyArrows = ({ etapas, obraStart, totalDays }: DependencyLineProps)
 
 interface GanttChartProps {
   etapas: Etapa[];
+  fullWidth?: boolean;
 }
 
-const GanttChart = ({ etapas }: GanttChartProps) => {
+const GanttChart = ({ etapas, fullWidth }: GanttChartProps) => {
   if (!etapas.length) return null;
 
   // Collect all dates from etapas

@@ -1,10 +1,13 @@
-import { ReactNode, useState } from "react";
-import { HardHat, LogOut, LayoutDashboard, Calendar, FileText, DollarSign, BarChart3, FolderOpen, Users, ChevronLeft, ChevronRight as ChevronRightIcon, Menu } from "lucide-react";
+import { ReactNode, useState, useMemo } from "react";
+import { HardHat, LogOut, LayoutDashboard, Calendar, FileText, DollarSign, BarChart3, FolderOpen, Users, ChevronLeft, ChevronRight as ChevronRightIcon, ClipboardCheck, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Progress } from "@/components/ui/progress";
+import { useObra } from "@/hooks/useObras";
+import { useEtapas } from "@/hooks/useEtapas";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -16,19 +19,82 @@ const navItems = [
 ];
 
 const obraNavItems = [
+  { label: "Dashboard", icon: BarChart3, tab: "dashboard" },
   { label: "Cronograma", icon: Calendar, tab: "cronograma" },
   { label: "Orçamento", icon: FileText, tab: "orcamento" },
   { label: "Despesas", icon: DollarSign, tab: "despesas" },
   { label: "Financeiro", icon: BarChart3, tab: "financeiro" },
+  { label: "Checklist", icon: ClipboardCheck, tab: "checklist" },
   { label: "Documentos", icon: FolderOpen, tab: "documentos" },
 ];
 
 const AppLayout = ({ children }: AppLayoutProps) => {
   const { signOut, user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [collapsed, setCollapsed] = useState(false);
 
+  // Detect if we're inside an obra
+  const obraMatch = location.pathname.match(/^\/obra\/([^/]+)/);
+  const obraId = obraMatch ? obraMatch[1] : null;
+  const activeTab = searchParams.get("tab") || "dashboard";
+
+  const { data: obra } = useObra(obraId || undefined);
+  const { data: etapas } = useEtapas(obraId || undefined);
+
+  const progresso = useMemo(() => {
+    if (!etapas?.length) return 0;
+    return Math.round(etapas.reduce((s, e) => s + (e.percentual_concluido || 0), 0) / etapas.length);
+  }, [etapas]);
+
   const userInitial = user?.email?.charAt(0).toUpperCase() || "U";
+
+  const handleTabClick = (tab: string) => {
+    setSearchParams({ tab });
+  };
+
+  const renderNavItem = (item: { label: string; icon: any; path?: string; tab?: string }, isActive: boolean, onClick?: () => void) => {
+    const LinkContent = onClick ? (
+      <button
+        onClick={onClick}
+        className={cn(
+          "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 w-full text-left",
+          isActive
+            ? "bg-sidebar-accent text-sidebar-primary shadow-sm"
+            : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+        )}
+      >
+        <item.icon className={cn("h-5 w-5 shrink-0", isActive && "text-sidebar-primary")} />
+        {!collapsed && <span>{item.label}</span>}
+      </button>
+    ) : (
+      <Link
+        to={item.path!}
+        className={cn(
+          "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+          isActive
+            ? "bg-sidebar-accent text-sidebar-primary shadow-sm"
+            : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+        )}
+      >
+        <item.icon className={cn("h-5 w-5 shrink-0", isActive && "text-sidebar-primary")} />
+        {!collapsed && <span>{item.label}</span>}
+      </Link>
+    );
+
+    if (collapsed) {
+      return (
+        <Tooltip key={item.label} delayDuration={0}>
+          <TooltipTrigger asChild>{LinkContent}</TooltipTrigger>
+          <TooltipContent side="right" className="font-medium">
+            {item.label}
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+    return <div key={item.label}>{LinkContent}</div>;
+  };
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -53,40 +119,56 @@ const AppLayout = ({ children }: AppLayoutProps) => {
 
         {/* Nav */}
         <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            const LinkContent = (
-              <Link
-                to={item.path}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-primary shadow-sm"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                )}
-              >
-                <item.icon className={cn("h-5 w-5 shrink-0", isActive && "text-sidebar-primary")} />
-                {!collapsed && <span>{item.label}</span>}
-              </Link>
-            );
-
-            if (collapsed) {
-              return (
-                <Tooltip key={item.path} delayDuration={0}>
-                  <TooltipTrigger asChild>{LinkContent}</TooltipTrigger>
-                  <TooltipContent side="right" className="font-medium">
-                    {item.label}
-                  </TooltipContent>
+          {obraId ? (
+            <>
+              {/* Back to obras */}
+              {!collapsed ? (
+                <button
+                  onClick={() => navigate("/")}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-all w-full text-left mb-2"
+                >
+                  <ArrowLeft className="h-4 w-4 shrink-0" />
+                  <span>Voltar para Obras</span>
+                </button>
+              ) : (
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => navigate("/")}
+                      className="flex items-center justify-center px-3 py-2.5 rounded-lg text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-all w-full mb-2"
+                    >
+                      <ArrowLeft className="h-5 w-5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Voltar para Obras</TooltipContent>
                 </Tooltip>
-              );
-            }
-            return <div key={item.path}>{LinkContent}</div>;
-          })}
+              )}
+
+              {/* Obra name + progress */}
+              {!collapsed && obra && (
+                <div className="px-3 mb-4 animate-fade-in">
+                  <p className="text-sm font-semibold truncate">{obra.nome}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Progress value={progresso} className="h-1.5 flex-1" />
+                    <span className="text-xs text-muted-foreground font-mono">{progresso}%</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Obra nav items */}
+              {obraNavItems.map((item) =>
+                renderNavItem(item, activeTab === item.tab, () => handleTabClick(item.tab))
+              )}
+            </>
+          ) : (
+            navItems.map((item) =>
+              renderNavItem(item, location.pathname === item.path)
+            )
+          )}
         </nav>
 
         {/* Bottom section */}
         <div className="border-t border-sidebar-border p-3 space-y-2">
-          {/* User avatar */}
           <div className={cn("flex items-center gap-3", collapsed && "justify-center")}>
             <div className="h-9 w-9 rounded-full bg-sidebar-accent flex items-center justify-center text-sm font-bold text-sidebar-primary shrink-0">
               {userInitial}
@@ -97,17 +179,10 @@ const AppLayout = ({ children }: AppLayoutProps) => {
               </div>
             )}
           </div>
-
-          {/* Sign out & collapse */}
           <div className="flex items-center gap-1">
             <Tooltip delayDuration={0}>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
-                  onClick={signOut}
-                >
+                <Button variant="ghost" size="icon" className="h-9 w-9 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50" onClick={signOut}>
                   <LogOut className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
@@ -115,12 +190,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
             </Tooltip>
             <Tooltip delayDuration={0}>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 ml-auto"
-                  onClick={() => setCollapsed(!collapsed)}
-                >
+                <Button variant="ghost" size="icon" className="h-9 w-9 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 ml-auto" onClick={() => setCollapsed(!collapsed)}>
                   {collapsed ? <ChevronRightIcon className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
                 </Button>
               </TooltipTrigger>
@@ -131,12 +201,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
       </aside>
 
       {/* Main content */}
-      <main
-        className={cn(
-          "flex-1 transition-all duration-300 ease-out",
-          collapsed ? "ml-16" : "ml-60"
-        )}
-      >
+      <main className={cn("flex-1 transition-all duration-300 ease-out", collapsed ? "ml-16" : "ml-60")}>
         <div className="max-w-7xl mx-auto p-6 lg:p-8 animate-fade-in">
           {children}
         </div>
