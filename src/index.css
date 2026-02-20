@@ -7,7 +7,7 @@
 @layer base {
   :root {
     /* Background & surfaces */
-    --background: 210 20% 98%;
+    --background: 40 20% 99%;
     --foreground: 215 25% 15%;
 
     --card: 0 0% 100%;
@@ -25,7 +25,7 @@
     --secondary-foreground: 215 25% 15%;
 
     /* Muted */
-    --muted: 210 16% 95%;
+    --muted: 40 12% 96%;
     --muted-foreground: 215 14% 46%;
 
     /* Accent — Laranja quente */
@@ -45,8 +45,8 @@
     --warning-foreground: 38 80% 12%;
 
     /* Borders & inputs */
-    --border: 214 18% 90%;
-    --input: 214 18% 90%;
+    --border: 30 10% 91%;
+    --input: 30 10% 91%;
     --ring: 221 83% 53%;
 
     --radius: 0.75rem;
@@ -65,7 +65,7 @@
     --gradient-start: 221 83% 53%;
     --gradient-end: 240 60% 60%;
     --surface-elevated: 0 0% 100%;
-    --surface-sunken: 210 20% 96%;
+    --surface-sunken: 40 14% 97%;
   }
 
   .dark {
