@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useDespesas } from "@/hooks/useDespesas";
+import { useReceitas } from "@/hooks/useReceitas";
 import { useEtapas } from "@/hooks/useEtapas";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
@@ -20,10 +21,12 @@ interface Props { obraId: string; }
 
 const FinanceiroTab = ({ obraId }: Props) => {
   const { data: despesas, isLoading: loadingDespesas } = useDespesas(obraId);
+  const { data: receitas, isLoading: loadingReceitas } = useReceitas(obraId);
   const { data: etapas, isLoading: loadingEtapas } = useEtapas(obraId);
   const [expandedEtapas, setExpandedEtapas] = useState<Set<string>>(new Set());
   const [showFluxo, setShowFluxo] = useState(true);
   const [showMatrix, setShowMatrix] = useState(true);
+  const [showEntradasSaidas, setShowEntradasSaidas] = useState(true);
 
   // Filters
   const [filtroAno, setFiltroAno] = useState("todos");
@@ -43,7 +46,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
     return Array.from(years).sort();
   }, [despesas]);
 
-  if (loadingDespesas || loadingEtapas) return <div className="text-center text-muted-foreground py-8">Carregando...</div>;
+  if (loadingDespesas || loadingEtapas || loadingReceitas) return <div className="text-center text-muted-foreground py-8">Carregando...</div>;
 
   const parentDespesas = (despesas || []).filter((d: any) => !d.despesa_pai_id);
   const childDespesas = (despesas || []).filter((d: any) => !!d.despesa_pai_id);
@@ -271,7 +274,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-4 gap-4">
         <div className="bg-card border rounded-md p-4">
           <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Previsto</p>
           <p className="text-xl font-bold mt-1">{fmt(totalPrevisto)}</p>
@@ -279,6 +282,10 @@ const FinanceiroTab = ({ obraId }: Props) => {
         <div className="bg-card border rounded-md p-4">
           <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Realizado</p>
           <p className="text-xl font-bold mt-1">{fmt(totalRealizado)}</p>
+        </div>
+        <div className="bg-card border rounded-md p-4">
+          <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Receitas</p>
+          <p className="text-xl font-bold mt-1 text-success">{fmt((receitas || []).reduce((s, r: any) => s + r.valor * (r.recorrente ? r.meses_repeticao : 1), 0))}</p>
         </div>
         <div className="bg-card border rounded-md p-4">
           <p className="text-xs text-muted-foreground uppercase tracking-wide">Saldo</p>
@@ -451,6 +458,102 @@ const FinanceiroTab = ({ obraId }: Props) => {
               )}
             </Table>
           </div>
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Entradas vs Saídas */}
+      <Collapsible open={showEntradasSaidas} onOpenChange={setShowEntradasSaidas}>
+        <div className="flex items-center justify-between">
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" className="flex items-center gap-2 p-0 h-auto hover:bg-transparent">
+              {showEntradasSaidas ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <h3 className="text-md font-semibold">Fluxo de Caixa — Entradas vs Saídas</h3>
+            </Button>
+          </CollapsibleTrigger>
+        </div>
+        <CollapsibleContent className="mt-3">
+          {(() => {
+            // Expand receitas into monthly entries
+            const receitasMensais: { mes: string; valor: number }[] = [];
+            (receitas || []).forEach((r: any) => {
+              const meses = r.recorrente ? r.meses_repeticao : 1;
+              const baseDate = new Date(r.data_inicio + "T12:00:00");
+              for (let i = 0; i < meses; i++) {
+                const d = new Date(baseDate);
+                d.setMonth(d.getMonth() + i);
+                const mesKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+                receitasMensais.push({ mes: mesKey, valor: r.valor });
+              }
+            });
+
+            // Aggregate entradas by month
+            const entradasPorMes: Record<string, number> = {};
+            receitasMensais.forEach(({ mes, valor }) => {
+              entradasPorMes[mes] = (entradasPorMes[mes] || 0) + valor;
+            });
+
+            // Aggregate saídas by month (from fluxoCaixa - despesas with vencimento)
+            const saidasPorMes: Record<string, number> = {};
+            allFluxoItems.forEach((d: any) => {
+              const date = new Date(d.data_vencimento);
+              const mesKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+              saidasPorMes[mesKey] = (saidasPorMes[mesKey] || 0) + (d.valor_real || d.valor_previsto);
+            });
+
+            // Collect all months
+            const allMonths = new Set([...Object.keys(entradasPorMes), ...Object.keys(saidasPorMes)]);
+            const sortedMeses = Array.from(allMonths).sort();
+
+            if (sortedMeses.length === 0) return <p className="text-sm text-muted-foreground">Nenhuma receita ou despesa com vencimento para comparar.</p>;
+
+            let acumulado = 0;
+            const fluxoRows = sortedMeses.map(mes => {
+              const entradas = entradasPorMes[mes] || 0;
+              const saidas = saidasPorMes[mes] || 0;
+              const saldoMensal = entradas - saidas;
+              acumulado += saldoMensal;
+              return { mes, entradas, saidas, saldoMensal, acumulado };
+            });
+
+            const totalEntradas = fluxoRows.reduce((s, r) => s + r.entradas, 0);
+            const totalSaidas = fluxoRows.reduce((s, r) => s + r.saidas, 0);
+
+            return (
+              <div className="bg-card rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-28">Mês</TableHead>
+                      <TableHead className="w-32">Entradas</TableHead>
+                      <TableHead className="w-32">Saídas</TableHead>
+                      <TableHead className="w-32">Saldo Mensal</TableHead>
+                      <TableHead className="w-32">Saldo Acumulado</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {fluxoRows.map(row => (
+                      <TableRow key={row.mes}>
+                        <TableCell className="whitespace-nowrap font-medium">{formatMonth(row.mes)}</TableCell>
+                        <TableCell className="font-mono whitespace-nowrap text-success">{fmt(row.entradas)}</TableCell>
+                        <TableCell className="font-mono whitespace-nowrap text-destructive">{fmt(row.saidas)}</TableCell>
+                        <TableCell className={`font-mono whitespace-nowrap ${row.saldoMensal >= 0 ? "text-success" : "text-destructive"}`}>{fmt(row.saldoMensal)}</TableCell>
+                        <TableCell className={`font-mono whitespace-nowrap font-semibold ${row.acumulado >= 0 ? "text-success" : "text-destructive"}`}>{fmt(row.acumulado)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                  <TableFooter>
+                    <TableRow className="font-semibold">
+                      <TableCell>Total</TableCell>
+                      <TableCell className="font-mono whitespace-nowrap text-success">{fmt(totalEntradas)}</TableCell>
+                      <TableCell className="font-mono whitespace-nowrap text-destructive">{fmt(totalSaidas)}</TableCell>
+                      <TableCell className={`font-mono whitespace-nowrap ${totalEntradas - totalSaidas >= 0 ? "text-success" : "text-destructive"}`}>{fmt(totalEntradas - totalSaidas)}</TableCell>
+                      <TableCell />
+                    </TableRow>
+                  </TableFooter>
+                </Table>
+              </div>
+            );
+          })()}
         </CollapsibleContent>
       </Collapsible>
     </div>

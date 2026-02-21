@@ -1,5 +1,5 @@
 import { ReactNode, useState, useMemo } from "react";
-import { HardHat, LogOut, LayoutDashboard, Calendar, FileText, DollarSign, BarChart3, FolderOpen, Users, ChevronLeft, ChevronRight as ChevronRightIcon, ClipboardCheck, ArrowLeft } from "lucide-react";
+import { HardHat, LogOut, LayoutDashboard, Calendar, FileText, DollarSign, BarChart3, FolderOpen, Users, ChevronLeft, ChevronRight as ChevronRightIcon, ClipboardCheck, ArrowLeft, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -23,6 +23,7 @@ const obraNavItems = [
   { label: "Cronograma", icon: Calendar, tab: "cronograma" },
   { label: "Orçamento", icon: FileText, tab: "orcamento" },
   { label: "Despesas", icon: DollarSign, tab: "despesas" },
+  { label: "Receitas", icon: TrendingUp, tab: "receitas" },
   { label: "Financeiro", icon: BarChart3, tab: "financeiro" },
   { label: "Checklist", icon: ClipboardCheck, tab: "checklist" },
   { label: "Documentos", icon: FolderOpen, tab: "documentos" },
@@ -202,7 +203,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
 
       {/* Main content */}
       <main className={cn("flex-1 transition-all duration-300 ease-out", collapsed ? "ml-16" : "ml-60")}>
-        <div className="max-w-7xl mx-auto p-6 lg:p-8 animate-fade-in">
+        <div className="p-6 lg:p-8 animate-fade-in">
           {children}
         </div>
       </main>

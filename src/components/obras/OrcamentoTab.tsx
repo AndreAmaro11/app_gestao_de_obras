@@ -12,7 +12,7 @@ import { Plus, ArrowLeft, Check, ChevronRight, ChevronDown, Pencil, Trash2, Uplo
 import { Checkbox } from "@/components/ui/checkbox";
 import { SortableHeader, useSort } from "@/components/DataToolbar";
 import {
-  useOrcamentos, useCreateOrcamento, useDeleteOrcamento,
+  useOrcamentos, useCreateOrcamento, useUpdateOrcamento, useDeleteOrcamento,
   useOrcamentoItens, useCreateOrcamentoItem, useUpdateOrcamentoItem, useDeleteOrcamentoItem,
   useCotacoes, useCreateCotacao, useUpdateCotacao, useSelectCotacao, useDeleteCotacao,
 } from "@/hooks/useOrcamentos";
@@ -128,6 +128,46 @@ const OrcamentoTab = ({ obraId }: Props) => {
   );
 };
 
+const statusLabels: Record<string, string> = {
+  rascunho: "Rascunho",
+  em_cotacao: "Em Cotação",
+  aprovado: "Aprovado",
+  fechado: "Fechado",
+};
+
+const statusColors: Record<string, string> = {
+  rascunho: "bg-muted text-muted-foreground",
+  em_cotacao: "bg-yellow-100 text-yellow-800",
+  aprovado: "bg-green-100 text-green-800",
+  fechado: "bg-blue-100 text-blue-800",
+};
+
+const OrcamentoStatusSelect = ({ orc }: { orc: any }) => {
+  const updateOrcamento = useUpdateOrcamento();
+  const { toast } = useToast();
+
+  const handleChange = async (newStatus: string) => {
+    try {
+      await updateOrcamento.mutateAsync({ id: orc.id, obra_id: orc.obra_id, status: newStatus as any });
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    }
+  };
+
+  return (
+    <Select value={orc.status} onValueChange={handleChange}>
+      <SelectTrigger className="h-7 w-32 text-xs" onClick={(e) => e.stopPropagation()}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {Object.entries(statusLabels).map(([k, v]) => (
+          <SelectItem key={k} value={k}>{v}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+};
+
 // Row component that fetches items total for each orcamento
 const OrcamentoRow = ({ orc, onClick, onDelete }: { orc: any; onClick: () => void; onDelete: (e: React.MouseEvent) => void }) => {
   const { data: itens } = useOrcamentoItens(orc.id);
@@ -137,7 +177,9 @@ const OrcamentoRow = ({ orc, onClick, onDelete }: { orc: any; onClick: () => voi
   return (
     <TableRow className="cursor-pointer hover:bg-muted/50" onClick={onClick}>
       <TableCell className="font-medium">{orc.nome}</TableCell>
-      <TableCell><StatusBadge status={orc.status} /></TableCell>
+      <TableCell>
+        <OrcamentoStatusSelect orc={orc} />
+      </TableCell>
       <TableCell className="text-center font-mono">{totalItens}</TableCell>
       <TableCell className="font-mono whitespace-nowrap">R$ {fmt(totalEstimado)}</TableCell>
       <TableCell className="font-mono whitespace-nowrap">
@@ -437,6 +479,22 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="h-4 w-4 mr-1" />Voltar</Button>
           <h2 className="text-lg font-semibold">Itens — {orcNome}</h2>
+          <Select value={orcStatus} onValueChange={async (v) => {
+            try {
+              await supabase.from("orcamentos").update({ status: v as any }).eq("id", orcamentoId);
+              qc.invalidateQueries({ queryKey: ["orcamentos", obraId] });
+            } catch {}
+          }}>
+            <SelectTrigger className="h-7 w-32 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="rascunho">Rascunho</SelectItem>
+              <SelectItem value="em_cotacao">Em Cotação</SelectItem>
+              <SelectItem value="aprovado">Aprovado</SelectItem>
+              <SelectItem value="fechado">Fechado</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex items-center gap-2">
           {selectedIds.size > 0 && (
