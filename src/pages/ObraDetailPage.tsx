@@ -7,6 +7,7 @@ import DespesasTab from "@/components/obras/DespesasTab";
 import FinanceiroTab from "@/components/obras/FinanceiroTab";
 import ChecklistTab from "@/components/obras/ChecklistTab";
 import DocumentosTab from "@/components/obras/DocumentosTab";
+import ReceitasTab from "@/components/obras/ReceitasTab";
 import { useObra } from "@/hooks/useObras";
 import { useEtapas } from "@/hooks/useEtapas";
 import { Progress } from "@/components/ui/progress";
@@ -47,6 +48,7 @@ const ObraDetailPage = () => {
     cronograma: "Cronograma",
     orcamento: "Orçamento",
     despesas: "Despesas",
+    receitas: "Receitas",
     financeiro: "Financeiro",
     checklist: "Checklist",
     documentos: "Documentos",
@@ -80,6 +82,7 @@ const ObraDetailPage = () => {
         {activeTab === "cronograma" && <CronogramaTab obraId={obra.id} />}
         {activeTab === "orcamento" && <OrcamentoTab obraId={obra.id} />}
         {activeTab === "despesas" && <DespesasTab obraId={obra.id} />}
+        {activeTab === "receitas" && <ReceitasTab obraId={obra.id} />}
         {activeTab === "financeiro" && <FinanceiroTab obraId={obra.id} />}
         {activeTab === "checklist" && <ChecklistTab obraId={obra.id} />}
         {activeTab === "documentos" && <DocumentosTab obraId={obra.id} />}

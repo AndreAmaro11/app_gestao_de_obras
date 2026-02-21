@@ -587,6 +587,56 @@ export type Database = {
           },
         ]
       }
+      receitas: {
+        Row: {
+          created_at: string | null
+          data_inicio: string
+          deleted_at: string | null
+          descricao: string
+          id: string
+          meses_repeticao: number | null
+          obra_id: string
+          observacao: string | null
+          recorrente: boolean | null
+          tipo: string
+          valor: number
+        }
+        Insert: {
+          created_at?: string | null
+          data_inicio: string
+          deleted_at?: string | null
+          descricao: string
+          id?: string
+          meses_repeticao?: number | null
+          obra_id: string
+          observacao?: string | null
+          recorrente?: boolean | null
+          tipo?: string
+          valor?: number
+        }
+        Update: {
+          created_at?: string | null
+          data_inicio?: string
+          deleted_at?: string | null
+          descricao?: string
+          id?: string
+          meses_repeticao?: number | null
+          obra_id?: string
+          observacao?: string | null
+          recorrente?: boolean | null
+          tipo?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receitas_obra_id_fkey"
+            columns: ["obra_id"]
+            isOneToOne: false
+            referencedRelation: "obras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subetapas: {
         Row: {
           deleted_at: string | null
