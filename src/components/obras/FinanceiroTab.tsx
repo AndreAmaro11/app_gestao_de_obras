@@ -220,7 +220,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
       <h2 className="text-lg font-semibold">Financeiro</h2>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-center">
+      <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
         <Select value={filtroAno} onValueChange={setFiltroAno}>
           <SelectTrigger className="w-32 h-9"><SelectValue placeholder="Ano" /></SelectTrigger>
           <SelectContent>
@@ -274,7 +274,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
         )}
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="bg-card border rounded-md p-4">
           <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Previsto</p>
           <p className="text-xl font-bold mt-1">{fmt(totalPrevisto)}</p>

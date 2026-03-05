@@ -70,7 +70,7 @@ const EditarObraDialog = ({ obra, open, onOpenChange }: Props) => {
             <Label htmlFor="edit-nome">Nome</Label>
             <Input id="edit-nome" value={nome} onChange={e => setNome(e.target.value)} required />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="edit-metragem">Metragem (m²)</Label>
               <Input id="edit-metragem" type="number" value={metragem} onChange={e => setMetragem(e.target.value)} />
@@ -87,7 +87,7 @@ const EditarObraDialog = ({ obra, open, onOpenChange }: Props) => {
               </Select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Data Início</Label>
               <Input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} />

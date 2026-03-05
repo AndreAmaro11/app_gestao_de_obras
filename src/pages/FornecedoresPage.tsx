@@ -122,8 +122,8 @@ const FornecedoresPage = () => {
 
   return (
     <AppLayout>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Fornecedores</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Fornecedores</h1>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-1" />Novo Fornecedor</Button>
@@ -131,11 +131,11 @@ const FornecedoresPage = () => {
           <DialogContent className="max-w-lg">
             <DialogHeader><DialogTitle>{editing ? "Editar Fornecedor" : "Novo Fornecedor"}</DialogTitle></DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2"><Label>Razão Social *</Label><Input value={nome} onChange={e => setNome(e.target.value)} required /></div>
                 <div className="space-y-2"><Label>Nome Fantasia</Label><Input value={nomeFantasia} onChange={e => setNomeFantasia(e.target.value)} /></div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2"><Label>CNPJ/CPF</Label><Input value={cnpj} onChange={e => setCnpj(e.target.value)} /></div>
                 <div className="space-y-2">
                   <Label>Tipo</Label>
@@ -149,11 +149,11 @@ const FornecedoresPage = () => {
                   </Select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2"><Label>Contato</Label><Input value={contato} onChange={e => setContato(e.target.value)} placeholder="Nome do contato" /></div>
                 <div className="space-y-2"><Label>Telefone</Label><Input value={telefone} onChange={e => setTelefone(e.target.value)} /></div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2"><Label>E-mail</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} /></div>
                 <div className="space-y-2"><Label>Rede Social</Label><Input value={redeSocial} onChange={e => setRedeSocial(e.target.value)} placeholder="@instagram, etc." /></div>
               </div>
@@ -165,7 +165,7 @@ const FornecedoresPage = () => {
               <div className="space-y-2"><Label>Observação</Label><Textarea value={obs} onChange={e => setObs(e.target.value)} rows={2} /></div>
               <div className="space-y-2">
                 <Label className="text-muted-foreground text-xs uppercase tracking-wide">Associação (opcional)</Label>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="space-y-1">
                     <Label className="text-xs">Obra</Label>
                     <Select value={obraId} onValueChange={(v) => { setObraId(v); setEtapaId(""); setSubetapaId(""); }}>

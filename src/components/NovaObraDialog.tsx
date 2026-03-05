@@ -48,7 +48,7 @@ const NovaObraDialog = () => {
             <Label htmlFor="nome">Nome</Label>
             <Input id="nome" value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: Casa Residencial Silva" required />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="metragem">Metragem (m²)</Label>
               <Input id="metragem" type="number" value={metragem} onChange={e => setMetragem(e.target.value)} placeholder="180" required />
@@ -65,7 +65,7 @@ const NovaObraDialog = () => {
               </Select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="inicio">Data Início</Label>
               <Input id="inicio" type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} />

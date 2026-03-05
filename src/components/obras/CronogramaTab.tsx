@@ -101,7 +101,7 @@ const CronogramaTab = ({ obraId }: Props) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold">Etapas</h2>
           <div className="flex items-center bg-muted rounded-lg p-0.5 ml-4">
@@ -125,7 +125,7 @@ const CronogramaTab = ({ obraId }: Props) => {
             </button>
           </div>
         </div>
-        <Button size="sm" onClick={() => { resetForm(); setShowDialog(true); }}><Plus className="h-4 w-4 mr-1" />Nova Etapa</Button>
+        <Button size="sm" className="self-end sm:self-auto" onClick={() => { resetForm(); setShowDialog(true); }}><Plus className="h-4 w-4 mr-1" />Nova Etapa</Button>
       </div>
 
       <Dialog open={showDialog} onOpenChange={(v) => { setShowDialog(v); if (!v) resetForm(); }}>
@@ -133,12 +133,12 @@ const CronogramaTab = ({ obraId }: Props) => {
           <DialogHeader><DialogTitle>{editingEtapa ? "Editar Etapa" : "Nova Etapa"}</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2"><Label>Nome</Label><Input value={nome} onChange={e => setNome(e.target.value)} required /></div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Início Previsto</Label><Input type="date" value={inicioPrev} onChange={e => setInicioPrev(e.target.value)} /></div>
               <div className="space-y-2"><Label>Fim Previsto</Label><Input type="date" value={fimPrev} onChange={e => setFimPrev(e.target.value)} /></div>
             </div>
             {editingEtapa && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Status</Label>
                   <Select value={status} onValueChange={setStatus}>

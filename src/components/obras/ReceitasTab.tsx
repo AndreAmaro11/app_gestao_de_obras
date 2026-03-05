@@ -99,14 +99,14 @@ const ReceitasTab = ({ obraId }: Props) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
         <h2 className="text-lg font-semibold">Receitas</h2>
-        <Button size="sm" onClick={() => { resetForm(); setShowDialog(true); }}>
+        <Button size="sm" className="self-end sm:self-auto" onClick={() => { resetForm(); setShowDialog(true); }}>
           <Plus className="h-4 w-4 mr-1" />Nova Receita
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div className="bg-card border rounded-md p-4">
           <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Mensal (entradas únicas)</p>
           <p className="text-xl font-bold mt-1 text-success">{fmt(totalMensal)}</p>
@@ -125,7 +125,7 @@ const ReceitasTab = ({ obraId }: Props) => {
               <Label>Descrição</Label>
               <Input value={descricao} onChange={e => setDescricao(e.target.value)} required />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Tipo</Label>
                 <Select value={tipo} onValueChange={setTipo}>
