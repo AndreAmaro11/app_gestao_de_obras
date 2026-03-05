@@ -58,16 +58,16 @@ const ObraDetailPage = () => {
     <AppLayout>
       {/* Compact header for operational tabs */}
       {activeTab !== "dashboard" && (
-        <div className="flex items-center gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-4 sm:mb-6">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-              <button onClick={() => navigate("/")} className="hover:text-foreground transition-colors">Obras</button>
-              <span className="text-muted-foreground/50">/</span>
+            <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-muted-foreground mb-1 overflow-x-auto">
+              <button onClick={() => navigate("/")} className="hover:text-foreground transition-colors shrink-0">Obras</button>
+              <span className="text-muted-foreground/50 shrink-0">/</span>
               <span className="truncate">{obra.nome}</span>
-              <span className="text-muted-foreground/50">/</span>
-              <span className="text-foreground font-medium">{tabLabel[activeTab] || activeTab}</span>
+              <span className="text-muted-foreground/50 shrink-0">/</span>
+              <span className="text-foreground font-medium shrink-0">{tabLabel[activeTab] || activeTab}</span>
             </div>
-            <h1 className="text-xl font-bold tracking-tight truncate">{tabLabel[activeTab]}</h1>
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight truncate">{tabLabel[activeTab]}</h1>
           </div>
           <div className="flex items-center gap-3 shrink-0">
             <Progress value={progresso} className="h-2 w-24" />

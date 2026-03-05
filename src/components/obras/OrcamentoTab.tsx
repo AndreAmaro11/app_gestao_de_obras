@@ -475,10 +475,10 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="h-4 w-4 mr-1" />Voltar</Button>
-          <h2 className="text-lg font-semibold">Itens — {orcNome}</h2>
+          <h2 className="text-base sm:text-lg font-semibold truncate">Itens — {orcNome}</h2>
           <Select value={orcStatus} onValueChange={async (v) => {
             try {
               await supabase.from("orcamentos").update({ status: v as any }).eq("id", orcamentoId);
@@ -496,7 +496,7 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
             </SelectContent>
           </Select>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
           {selectedIds.size > 0 && (
             <Button size="sm" variant="outline" disabled={regenerating} onClick={handleRegenerate}>
               <RefreshCw className={`h-4 w-4 mr-1 ${regenerating ? "animate-spin" : ""}`} />
@@ -520,7 +520,7 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
           <DialogHeader><DialogTitle>{editingItem ? "Editar Item" : "Novo Item"}</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2"><Label>Descrição</Label><Input value={descricao} onChange={e => setDescricao(e.target.value)} required /></div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Etapa</Label>
                 <Select value={etapaId} onValueChange={(v) => { setEtapaId(v); setSubetapaId(""); }}>
@@ -530,7 +530,7 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
               </div>
               <SubetapaSelect etapaId={etapaId || undefined} value={subetapaId} onChange={setSubetapaId} />
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <div className="space-y-2"><Label>Unidade</Label><Input value={unidade} onChange={e => setUnidade(e.target.value)} /></div>
               <div className="space-y-2"><Label>Qtde</Label><Input type="number" value={quantidade} onChange={e => setQuantidade(e.target.value)} /></div>
               <div className="space-y-2"><Label>Valor Unit. Est.</Label><Input type="number" step="0.01" value={valorUnit} onChange={e => setValorUnit(e.target.value)} /></div>
