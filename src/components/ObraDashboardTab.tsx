@@ -5,10 +5,11 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { useEtapas } from "@/hooks/useEtapas";
 import { useDespesas } from "@/hooks/useDespesas";
+import { useReceitas } from "@/hooks/useReceitas";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
-  LineChart, Line,
+  LineChart, Line, ComposedChart, ReferenceLine,
 } from "recharts";
 
 const fmt = (v: number) =>
