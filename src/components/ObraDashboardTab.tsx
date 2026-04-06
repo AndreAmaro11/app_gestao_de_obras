@@ -161,10 +161,14 @@ const ObraDashboardTab = ({ obraId, obraNome }: Props) => {
 
     const allMonths = Array.from(new Set([...Object.keys(entradasPorMes), ...Object.keys(saidasPorMes)])).sort();
     let acumulado = 0;
+    let entradaAcum = 0;
+    let saidaAcum = 0;
     return allMonths.map(mes => {
       const entradas = entradasPorMes[mes] || 0;
       const saidas = saidasPorMes[mes] || 0;
       acumulado += entradas - saidas;
+      entradaAcum += entradas;
+      saidaAcum += saidas;
       const [y, m] = mes.split("-");
       const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
       return {
@@ -172,6 +176,8 @@ const ObraDashboardTab = ({ obraId, obraNome }: Props) => {
         Entradas: entradas,
         Saídas: saidas,
         Acumulado: acumulado,
+        "Entrada Acum.": entradaAcum,
+        "Saída Acum.": saidaAcum,
       };
     });
   }, [despesas, receitas]);
@@ -338,6 +344,8 @@ const ObraDashboardTab = ({ obraId, obraNome }: Props) => {
                   <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
                   <Bar dataKey="Entradas" fill="hsl(142, 71%, 45%)" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="Saídas" fill="hsl(0, 84%, 60%)" radius={[4, 4, 0, 0]} />
+                  <Line type="monotone" dataKey="Entrada Acum." name="Entrada Acumulada" stroke="hsl(142, 71%, 35%)" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 2 }} />
+                  <Line type="monotone" dataKey="Saída Acum." name="Saída Acumulada" stroke="hsl(0, 84%, 50%)" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 2 }} />
                   <Line type="monotone" dataKey="Acumulado" name="Saldo Acumulado" stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ r: 3 }} />
                 </ComposedChart>
               </ResponsiveContainer>
