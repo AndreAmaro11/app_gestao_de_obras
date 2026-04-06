@@ -552,8 +552,6 @@ const FinanceiroTab = ({ obraId }: Props) => {
                       </TableRow>
                     </TableFooter>
                   </Table>
-                </div>
-              </div>
             );
           })()}
         </CollapsibleContent>
