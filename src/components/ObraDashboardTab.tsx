@@ -114,6 +114,68 @@ const ObraDashboardTab = ({ obraId, obraNome }: Props) => {
       }));
   }, [despesas]);
 
+  // Chart data: Entradas vs Saídas com saldo acumulado
+  const fluxoData = useMemo(() => {
+    if (!despesas && !receitas) return [];
+    const despesasList = (despesas || []).filter((d: any) => !d.despesa_pai_id);
+
+    // Expand receitas into monthly entries
+    const entradasPorMes: Record<string, number> = {};
+    (receitas || []).forEach((r: any) => {
+      const meses = r.recorrente ? (r.meses_repeticao || 1) : 1;
+      const baseDate = new Date(r.data_inicio + "T12:00:00");
+      for (let i = 0; i < meses; i++) {
+        const d = new Date(baseDate);
+        d.setMonth(d.getMonth() + i);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        entradasPorMes[key] = (entradasPorMes[key] || 0) + r.valor;
+      }
+    });
+
+    // Expand despesas (with parcelas) into monthly saídas
+    const saidasPorMes: Record<string, number> = {};
+    despesasList.forEach((d: any) => {
+      const childParcelas = (despesas || []).filter((c: any) => c.despesa_pai_id === d.id);
+      if (childParcelas.length > 0) {
+        childParcelas.forEach((c: any) => {
+          if (!c.data_vencimento) return;
+          const dt = new Date(c.data_vencimento);
+          const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+          saidasPorMes[key] = (saidasPorMes[key] || 0) + (c.valor_real || c.valor_previsto);
+        });
+      } else if (d.data_vencimento && d.parcelas > 1) {
+        const baseDate = new Date(d.data_vencimento + "T12:00:00");
+        const valorParcela = Math.round((d.valor_real || d.valor_previsto) / d.parcelas * 100) / 100;
+        for (let i = 0; i < d.parcelas; i++) {
+          const venc = new Date(baseDate);
+          venc.setMonth(venc.getMonth() + i);
+          const key = `${venc.getFullYear()}-${String(venc.getMonth() + 1).padStart(2, "0")}`;
+          saidasPorMes[key] = (saidasPorMes[key] || 0) + valorParcela;
+        }
+      } else if (d.data_vencimento) {
+        const dt = new Date(d.data_vencimento);
+        const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+        saidasPorMes[key] = (saidasPorMes[key] || 0) + (d.valor_real || d.valor_previsto);
+      }
+    });
+
+    const allMonths = Array.from(new Set([...Object.keys(entradasPorMes), ...Object.keys(saidasPorMes)])).sort();
+    let acumulado = 0;
+    return allMonths.map(mes => {
+      const entradas = entradasPorMes[mes] || 0;
+      const saidas = saidasPorMes[mes] || 0;
+      acumulado += entradas - saidas;
+      const [y, m] = mes.split("-");
+      const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+      return {
+        mes: `${monthNames[parseInt(m) - 1]}/${y.slice(2)}`,
+        Entradas: entradas,
+        Saídas: saidas,
+        Acumulado: acumulado,
+      };
+    });
+  }, [despesas, receitas]);
+
   const kpis = [
     {
       title: "Progresso",
