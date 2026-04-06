@@ -47,6 +47,7 @@ const CATEGORIA_LABELS: Record<string, string> = {
 const ObraDashboardTab = ({ obraId, obraNome }: Props) => {
   const { data: etapas } = useEtapas(obraId);
   const { data: despesas } = useDespesas(obraId);
+  const { data: receitas } = useReceitas(obraId);
 
   const stats = useMemo(() => {
     const etapasList = etapas || [];
