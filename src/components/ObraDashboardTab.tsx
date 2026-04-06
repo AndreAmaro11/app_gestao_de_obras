@@ -5,10 +5,11 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { useEtapas } from "@/hooks/useEtapas";
 import { useDespesas } from "@/hooks/useDespesas";
+import { useReceitas } from "@/hooks/useReceitas";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
-  LineChart, Line,
+  LineChart, Line, ComposedChart, ReferenceLine,
 } from "recharts";
 
 const fmt = (v: number) =>
@@ -46,6 +47,7 @@ const CATEGORIA_LABELS: Record<string, string> = {
 const ObraDashboardTab = ({ obraId, obraNome }: Props) => {
   const { data: etapas } = useEtapas(obraId);
   const { data: despesas } = useDespesas(obraId);
+  const { data: receitas } = useReceitas(obraId);
 
   const stats = useMemo(() => {
     const etapasList = etapas || [];
@@ -111,6 +113,68 @@ const ObraDashboardTab = ({ obraId, obraNome }: Props) => {
         real: v.real,
       }));
   }, [despesas]);
+
+  // Chart data: Entradas vs Saídas com saldo acumulado
+  const fluxoData = useMemo(() => {
+    if (!despesas && !receitas) return [];
+    const despesasList = (despesas || []).filter((d: any) => !d.despesa_pai_id);
+
+    // Expand receitas into monthly entries
+    const entradasPorMes: Record<string, number> = {};
+    (receitas || []).forEach((r: any) => {
+      const meses = r.recorrente ? (r.meses_repeticao || 1) : 1;
+      const baseDate = new Date(r.data_inicio + "T12:00:00");
+      for (let i = 0; i < meses; i++) {
+        const d = new Date(baseDate);
+        d.setMonth(d.getMonth() + i);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        entradasPorMes[key] = (entradasPorMes[key] || 0) + r.valor;
+      }
+    });
+
+    // Expand despesas (with parcelas) into monthly saídas
+    const saidasPorMes: Record<string, number> = {};
+    despesasList.forEach((d: any) => {
+      const childParcelas = (despesas || []).filter((c: any) => c.despesa_pai_id === d.id);
+      if (childParcelas.length > 0) {
+        childParcelas.forEach((c: any) => {
+          if (!c.data_vencimento) return;
+          const dt = new Date(c.data_vencimento);
+          const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+          saidasPorMes[key] = (saidasPorMes[key] || 0) + (c.valor_real || c.valor_previsto);
+        });
+      } else if (d.data_vencimento && d.parcelas > 1) {
+        const baseDate = new Date(d.data_vencimento + "T12:00:00");
+        const valorParcela = Math.round((d.valor_real || d.valor_previsto) / d.parcelas * 100) / 100;
+        for (let i = 0; i < d.parcelas; i++) {
+          const venc = new Date(baseDate);
+          venc.setMonth(venc.getMonth() + i);
+          const key = `${venc.getFullYear()}-${String(venc.getMonth() + 1).padStart(2, "0")}`;
+          saidasPorMes[key] = (saidasPorMes[key] || 0) + valorParcela;
+        }
+      } else if (d.data_vencimento) {
+        const dt = new Date(d.data_vencimento);
+        const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+        saidasPorMes[key] = (saidasPorMes[key] || 0) + (d.valor_real || d.valor_previsto);
+      }
+    });
+
+    const allMonths = Array.from(new Set([...Object.keys(entradasPorMes), ...Object.keys(saidasPorMes)])).sort();
+    let acumulado = 0;
+    return allMonths.map(mes => {
+      const entradas = entradasPorMes[mes] || 0;
+      const saidas = saidasPorMes[mes] || 0;
+      acumulado += entradas - saidas;
+      const [y, m] = mes.split("-");
+      const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+      return {
+        mes: `${monthNames[parseInt(m) - 1]}/${y.slice(2)}`,
+        Entradas: entradas,
+        Saídas: saidas,
+        Acumulado: acumulado,
+      };
+    });
+  }, [despesas, receitas]);
 
   const kpis = [
     {
@@ -254,6 +318,31 @@ const ObraDashboardTab = ({ obraId, obraNome }: Props) => {
               </ResponsiveContainer>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-12">Sem dados para exibir</p>
+            )}
+          </CardContent>
+        </Card>
+        {/* Composed chart: Entradas vs Saídas + Saldo Acumulado */}
+        <Card className="shadow-sm rounded-xl border-border/50 lg:col-span-2">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="text-sm font-semibold">Fluxo de Caixa — Entradas vs Saídas</CardTitle>
+          </CardHeader>
+          <CardContent className="px-2 pb-4">
+            {fluxoData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <ComposedChart data={fluxoData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="mes" tick={{ fontSize: 10 }} className="fill-muted-foreground" />
+                  <YAxis tick={{ fontSize: 10 }} className="fill-muted-foreground" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                  <RechartsTooltip formatter={(v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} />
+                  <Legend />
+                  <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
+                  <Bar dataKey="Entradas" fill="hsl(142, 71%, 45%)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Saídas" fill="hsl(0, 84%, 60%)" radius={[4, 4, 0, 0]} />
+                  <Line type="monotone" dataKey="Acumulado" name="Saldo Acumulado" stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ r: 3 }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-12">Sem receitas ou despesas para exibir</p>
             )}
           </CardContent>
         </Card>
