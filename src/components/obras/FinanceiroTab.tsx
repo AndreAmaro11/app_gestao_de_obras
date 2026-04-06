@@ -519,39 +519,69 @@ const FinanceiroTab = ({ obraId }: Props) => {
             const totalEntradas = fluxoRows.reduce((s, r) => s + r.entradas, 0);
             const totalSaidas = fluxoRows.reduce((s, r) => s + r.saidas, 0);
 
+            const chartData = fluxoRows.map(row => ({
+              mes: formatMonth(row.mes),
+              Entradas: row.entradas,
+              Saídas: row.saidas,
+              Saldo: row.saldoMensal,
+              Acumulado: row.acumulado,
+            }));
+
+            const fmtTooltip = (value: number) => `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+
             return (
-              <div className="bg-card rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-28">Mês</TableHead>
-                      <TableHead className="w-32">Entradas</TableHead>
-                      <TableHead className="w-32">Saídas</TableHead>
-                      <TableHead className="w-32">Saldo Mensal</TableHead>
-                      <TableHead className="w-32">Saldo Acumulado</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {fluxoRows.map(row => (
-                      <TableRow key={row.mes}>
-                        <TableCell className="whitespace-nowrap font-medium">{formatMonth(row.mes)}</TableCell>
-                        <TableCell className="font-mono whitespace-nowrap text-success">{fmt(row.entradas)}</TableCell>
-                        <TableCell className="font-mono whitespace-nowrap text-destructive">{fmt(row.saidas)}</TableCell>
-                        <TableCell className={`font-mono whitespace-nowrap ${row.saldoMensal >= 0 ? "text-success" : "text-destructive"}`}>{fmt(row.saldoMensal)}</TableCell>
-                        <TableCell className={`font-mono whitespace-nowrap font-semibold ${row.acumulado >= 0 ? "text-success" : "text-destructive"}`}>{fmt(row.acumulado)}</TableCell>
+              <div className="space-y-4">
+                {/* Chart */}
+                <div className="bg-card rounded-md border p-4">
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                      <Tooltip formatter={(value: number) => fmtTooltip(value)} />
+                      <Legend />
+                      <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
+                      <Bar dataKey="Entradas" fill="hsl(142, 71%, 45%)" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="Saídas" fill="hsl(0, 84%, 60%)" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="Saldo" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Table */}
+                <div className="bg-card rounded-md border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-28">Mês</TableHead>
+                        <TableHead className="w-32">Entradas</TableHead>
+                        <TableHead className="w-32">Saídas</TableHead>
+                        <TableHead className="w-32">Saldo Mensal</TableHead>
+                        <TableHead className="w-32">Saldo Acumulado</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                  <TableFooter>
-                    <TableRow className="font-semibold">
-                      <TableCell>Total</TableCell>
-                      <TableCell className="font-mono whitespace-nowrap text-success">{fmt(totalEntradas)}</TableCell>
-                      <TableCell className="font-mono whitespace-nowrap text-destructive">{fmt(totalSaidas)}</TableCell>
-                      <TableCell className={`font-mono whitespace-nowrap ${totalEntradas - totalSaidas >= 0 ? "text-success" : "text-destructive"}`}>{fmt(totalEntradas - totalSaidas)}</TableCell>
-                      <TableCell />
-                    </TableRow>
-                  </TableFooter>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {fluxoRows.map(row => (
+                        <TableRow key={row.mes}>
+                          <TableCell className="whitespace-nowrap font-medium">{formatMonth(row.mes)}</TableCell>
+                          <TableCell className="font-mono whitespace-nowrap text-success">{fmt(row.entradas)}</TableCell>
+                          <TableCell className="font-mono whitespace-nowrap text-destructive">{fmt(row.saidas)}</TableCell>
+                          <TableCell className={`font-mono whitespace-nowrap ${row.saldoMensal >= 0 ? "text-success" : "text-destructive"}`}>{fmt(row.saldoMensal)}</TableCell>
+                          <TableCell className={`font-mono whitespace-nowrap font-semibold ${row.acumulado >= 0 ? "text-success" : "text-destructive"}`}>{fmt(row.acumulado)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                    <TableFooter>
+                      <TableRow className="font-semibold">
+                        <TableCell>Total</TableCell>
+                        <TableCell className="font-mono whitespace-nowrap text-success">{fmt(totalEntradas)}</TableCell>
+                        <TableCell className="font-mono whitespace-nowrap text-destructive">{fmt(totalSaidas)}</TableCell>
+                        <TableCell className={`font-mono whitespace-nowrap ${totalEntradas - totalSaidas >= 0 ? "text-success" : "text-destructive"}`}>{fmt(totalEntradas - totalSaidas)}</TableCell>
+                        <TableCell />
+                      </TableRow>
+                    </TableFooter>
+                  </Table>
+                </div>
               </div>
             );
           })()}
