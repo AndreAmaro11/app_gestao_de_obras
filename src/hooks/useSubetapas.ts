@@ -34,11 +34,13 @@ export const useCreateSubetapa = () => {
 export const useUpdateSubetapa = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: TablesUpdate<"subetapas"> & { id: string; etapa_id: string }) => {
-      const { error } = await supabase.from("subetapas").update(updates).eq("id", id);
+    mutationFn: async ({ id, etapa_id, ...updates }: TablesUpdate<"subetapas"> & { id: string; etapa_id: string }) => {
+      const payload = { ...updates, etapa_id };
+      const { error } = await supabase.from("subetapas").update(payload).eq("id", id);
       if (error) throw error;
+      return etapa_id;
     },
-    onSuccess: (_, v) => qc.invalidateQueries({ queryKey: ["subetapas", v.etapa_id] }),
+    onSuccess: (etapa_id) => qc.invalidateQueries({ queryKey: ["subetapas", etapa_id] }),
   });
 };
 
