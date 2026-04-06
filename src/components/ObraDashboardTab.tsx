@@ -161,10 +161,14 @@ const ObraDashboardTab = ({ obraId, obraNome }: Props) => {
 
     const allMonths = Array.from(new Set([...Object.keys(entradasPorMes), ...Object.keys(saidasPorMes)])).sort();
     let acumulado = 0;
+    let entradaAcum = 0;
+    let saidaAcum = 0;
     return allMonths.map(mes => {
       const entradas = entradasPorMes[mes] || 0;
       const saidas = saidasPorMes[mes] || 0;
       acumulado += entradas - saidas;
+      entradaAcum += entradas;
+      saidaAcum += saidas;
       const [y, m] = mes.split("-");
       const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
       return {
@@ -172,6 +176,8 @@ const ObraDashboardTab = ({ obraId, obraNome }: Props) => {
         Entradas: entradas,
         Saídas: saidas,
         Acumulado: acumulado,
+        "Entrada Acum.": entradaAcum,
+        "Saída Acum.": saidaAcum,
       };
     });
   }, [despesas, receitas]);
