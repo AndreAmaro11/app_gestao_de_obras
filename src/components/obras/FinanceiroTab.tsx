@@ -518,36 +518,8 @@ const FinanceiroTab = ({ obraId }: Props) => {
             const totalEntradas = fluxoRows.reduce((s, r) => s + r.entradas, 0);
             const totalSaidas = fluxoRows.reduce((s, r) => s + r.saidas, 0);
 
-            const chartData = fluxoRows.map(row => ({
-              mes: formatMonth(row.mes),
-              Entradas: row.entradas,
-              Saídas: row.saidas,
-              Saldo: row.saldoMensal,
-              Acumulado: row.acumulado,
-            }));
-
-            const fmtTooltip = (value: number) => `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
 
             return (
-              <div className="space-y-4">
-                {/* Chart */}
-                <div className="bg-card rounded-md border p-4">
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                      <Tooltip formatter={(value: number) => fmtTooltip(value)} />
-                      <Legend />
-                      <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
-                      <Bar dataKey="Entradas" fill="hsl(142, 71%, 45%)" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="Saídas" fill="hsl(0, 84%, 60%)" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="Saldo" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                {/* Table */}
                 <div className="bg-card rounded-md border overflow-x-auto">
                   <Table>
                     <TableHeader>
