@@ -344,6 +344,8 @@ const ObraDashboardTab = ({ obraId, obraNome }: Props) => {
                   <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
                   <Bar dataKey="Entradas" fill="hsl(142, 71%, 45%)" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="Saídas" fill="hsl(0, 84%, 60%)" radius={[4, 4, 0, 0]} />
+                  <Line type="monotone" dataKey="Entrada Acum." name="Entrada Acumulada" stroke="hsl(142, 71%, 35%)" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 2 }} />
+                  <Line type="monotone" dataKey="Saída Acum." name="Saída Acumulada" stroke="hsl(0, 84%, 50%)" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 2 }} />
                   <Line type="monotone" dataKey="Acumulado" name="Saldo Acumulado" stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ r: 3 }} />
                 </ComposedChart>
               </ResponsiveContainer>
