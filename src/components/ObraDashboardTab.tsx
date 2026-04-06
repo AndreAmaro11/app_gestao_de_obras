@@ -321,6 +321,31 @@ const ObraDashboardTab = ({ obraId, obraNome }: Props) => {
             )}
           </CardContent>
         </Card>
+        {/* Composed chart: Entradas vs Saídas + Saldo Acumulado */}
+        <Card className="shadow-sm rounded-xl border-border/50 lg:col-span-2">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="text-sm font-semibold">Fluxo de Caixa — Entradas vs Saídas</CardTitle>
+          </CardHeader>
+          <CardContent className="px-2 pb-4">
+            {fluxoData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <ComposedChart data={fluxoData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="mes" tick={{ fontSize: 10 }} className="fill-muted-foreground" />
+                  <YAxis tick={{ fontSize: 10 }} className="fill-muted-foreground" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                  <RechartsTooltip formatter={(v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} />
+                  <Legend />
+                  <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
+                  <Bar dataKey="Entradas" fill="hsl(142, 71%, 45%)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Saídas" fill="hsl(0, 84%, 60%)" radius={[4, 4, 0, 0]} />
+                  <Line type="monotone" dataKey="Acumulado" name="Saldo Acumulado" stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ r: 3 }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-12">Sem receitas ou despesas para exibir</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
