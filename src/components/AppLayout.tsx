@@ -1,5 +1,5 @@
 import { ReactNode, useState, useMemo } from "react";
-import { HardHat, LogOut, LayoutDashboard, Calendar, FileText, DollarSign, BarChart3, FolderOpen, Users, ChevronLeft, ChevronRight as ChevronRightIcon, ClipboardCheck, ArrowLeft, TrendingUp, Menu, X } from "lucide-react";
+import { HardHat, LogOut, LayoutDashboard, Calendar, FileText, DollarSign, BarChart3, FolderOpen, Users, ChevronLeft, ChevronRight as ChevronRightIcon, ClipboardCheck, ArrowLeft, TrendingUp, Menu, X, FileImage } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -29,6 +29,7 @@ const obraNavItems = [
   { label: "Financeiro", icon: BarChart3, tab: "financeiro" },
   { label: "Checklist", icon: ClipboardCheck, tab: "checklist" },
   { label: "Documentos", icon: FolderOpen, tab: "documentos" },
+  { label: "RDO", icon: FileImage, tab: "rdo" },
 ];
 
 const AppLayout = ({ children }: AppLayoutProps) => {
