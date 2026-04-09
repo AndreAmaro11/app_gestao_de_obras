@@ -22,8 +22,8 @@ const statusColorMap: Record<string, string> = {
 };
 
 const GanttBar = ({ nome, inicio, fim, percentual, obraStart, totalDays, isSubetapa, status }: GanttBarProps) => {
-  const start = differenceInDays(new Date(inicio), obraStart);
-  const duration = differenceInDays(new Date(fim), new Date(inicio));
+  const start = differenceInDays(new Date(inicio + "T12:00:00"), obraStart);
+  const duration = differenceInDays(new Date(fim + "T12:00:00"), new Date(inicio + "T12:00:00"));
   const leftPct = Math.max((start / totalDays) * 100, 0);
   const widthPct = Math.max((duration / totalDays) * 100, 2);
   const barColor = statusColorMap[status] || "bg-primary/70";
@@ -142,8 +142,8 @@ const GanttChart = ({ etapas, fullWidth }: GanttChartProps) => {
   }
 
   const sorted = allDates.sort();
-  const obraStart = new Date(sorted[0]);
-  const obraEnd = new Date(sorted[sorted.length - 1]);
+  const obraStart = new Date(sorted[0] + "T12:00:00");
+  const obraEnd = new Date(sorted[sorted.length - 1] + "T12:00:00");
   const totalDays = Math.max(differenceInDays(obraEnd, obraStart), 1);
 
   // Month markers

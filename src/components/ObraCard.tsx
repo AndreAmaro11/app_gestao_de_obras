@@ -72,7 +72,7 @@ const ObraCard = ({ obra, onDelete, percentual = 0 }: Props) => {
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             {obra.metragem && <span className="font-medium">{obra.metragem} m²</span>}
             {obra.data_inicio && (
-              <span>{new Date(obra.data_inicio).toLocaleDateString("pt-BR", { month: "short", year: "numeric" })}</span>
+              <span>{new Date(obra.data_inicio + "T12:00:00").toLocaleDateString("pt-BR", { month: "short", year: "numeric" })}</span>
             )}
           </div>
           <div className="space-y-2">

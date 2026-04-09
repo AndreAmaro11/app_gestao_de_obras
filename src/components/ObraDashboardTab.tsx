@@ -108,7 +108,7 @@ const ObraDashboardTab = ({ obraId, obraNome }: Props) => {
     return Object.entries(monthly)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([month, v]) => ({
-        mes: new Date(month + "-01").toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }),
+        mes: new Date(month + "-01T12:00:00").toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }),
         previsto: v.previsto,
         real: v.real,
       }));

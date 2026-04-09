@@ -6,6 +6,7 @@ import OrcamentoTab from "@/components/obras/OrcamentoTab";
 import DespesasTab from "@/components/obras/DespesasTab";
 import FinanceiroTab from "@/components/obras/FinanceiroTab";
 import ChecklistTab from "@/components/obras/ChecklistTab";
+import RdoTab from "@/components/obras/RdoTab";
 import DocumentosTab from "@/components/obras/DocumentosTab";
 import ReceitasTab from "@/components/obras/ReceitasTab";
 import { useObra } from "@/hooks/useObras";
@@ -52,6 +53,7 @@ const ObraDetailPage = () => {
     financeiro: "Financeiro",
     checklist: "Checklist",
     documentos: "Documentos",
+    rdo: "RDO",
   };
 
   return (
@@ -86,6 +88,7 @@ const ObraDetailPage = () => {
         {activeTab === "financeiro" && <FinanceiroTab obraId={obra.id} />}
         {activeTab === "checklist" && <ChecklistTab obraId={obra.id} />}
         {activeTab === "documentos" && <DocumentosTab obraId={obra.id} />}
+        {activeTab === "rdo" && <RdoTab obraId={obra.id} />}
       </div>
     </AppLayout>
   );

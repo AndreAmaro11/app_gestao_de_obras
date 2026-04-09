@@ -186,8 +186,8 @@ const SubetapasRow = ({ etapaId, obraId, onSubetapaChange }: Props) => {
             </div>
           </TableCell>
           <TableCell className="text-sm pl-10">↳ {s.nome}</TableCell>
-          <TableCell className="text-sm">{s.inicio_previsto ? new Date(s.inicio_previsto).toLocaleDateString("pt-BR") : "—"}</TableCell>
-          <TableCell className="text-sm">{s.fim_previsto ? new Date(s.fim_previsto).toLocaleDateString("pt-BR") : "—"}</TableCell>
+          <TableCell className="text-sm">{s.inicio_previsto ? new Date(s.inicio_previsto + "T12:00:00").toLocaleDateString("pt-BR") : "—"}</TableCell>
+          <TableCell className="text-sm">{s.fim_previsto ? new Date(s.fim_previsto + "T12:00:00").toLocaleDateString("pt-BR") : "—"}</TableCell>
           <TableCell><span className="font-mono text-sm">{s.percentual_concluido}%</span></TableCell>
           <TableCell><StatusBadge status={s.status} /></TableCell>
           <TableCell className="text-right">

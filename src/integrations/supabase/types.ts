@@ -587,6 +587,105 @@ export type Database = {
           },
         ]
       }
+      rdo: {
+        Row: {
+          clima: string | null
+          created_at: string
+          data: string
+          deleted_at: string | null
+          descricao: string | null
+          etapa_id: string | null
+          id: string
+          obra_id: string
+          subetapa_id: string | null
+        }
+        Insert: {
+          clima?: string | null
+          created_at?: string
+          data?: string
+          deleted_at?: string | null
+          descricao?: string | null
+          etapa_id?: string | null
+          id?: string
+          obra_id: string
+          subetapa_id?: string | null
+        }
+        Update: {
+          clima?: string | null
+          created_at?: string
+          data?: string
+          deleted_at?: string | null
+          descricao?: string | null
+          etapa_id?: string | null
+          id?: string
+          obra_id?: string
+          subetapa_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rdo_etapa_id_fkey"
+            columns: ["etapa_id"]
+            isOneToOne: false
+            referencedRelation: "etapas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rdo_obra_id_fkey"
+            columns: ["obra_id"]
+            isOneToOne: false
+            referencedRelation: "obras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rdo_subetapa_id_fkey"
+            columns: ["subetapa_id"]
+            isOneToOne: false
+            referencedRelation: "subetapas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rdo_midias: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          descricao: string | null
+          id: string
+          rdo_id: string
+          thumbnail_url: string | null
+          tipo: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          descricao?: string | null
+          id?: string
+          rdo_id: string
+          thumbnail_url?: string | null
+          tipo?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          descricao?: string | null
+          id?: string
+          rdo_id?: string
+          thumbnail_url?: string | null
+          tipo?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rdo_midias_rdo_id_fkey"
+            columns: ["rdo_id"]
+            isOneToOne: false
+            referencedRelation: "rdo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       receitas: {
         Row: {
           created_at: string | null
