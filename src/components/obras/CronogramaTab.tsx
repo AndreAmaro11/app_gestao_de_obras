@@ -206,8 +206,8 @@ const CronogramaTab = ({ obraId }: Props) => {
                           </span>
                           {dep && <span className="text-[10px] text-muted-foreground ml-2">dep: {dep.nome}</span>}
                         </TableCell>
-                        <TableCell>{etapa.inicio_previsto ? new Date(etapa.inicio_previsto).toLocaleDateString("pt-BR") : "—"}</TableCell>
-                        <TableCell>{etapa.fim_previsto ? new Date(etapa.fim_previsto).toLocaleDateString("pt-BR") : "—"}</TableCell>
+                        <TableCell>{etapa.inicio_previsto ? new Date(etapa.inicio_previsto + "T12:00:00").toLocaleDateString("pt-BR") : "—"}</TableCell>
+                        <TableCell>{etapa.fim_previsto ? new Date(etapa.fim_previsto + "T12:00:00").toLocaleDateString("pt-BR") : "—"}</TableCell>
                         <TableCell><span className="font-mono text-sm">{etapa.percentual_concluido}%</span></TableCell>
                         <TableCell><StatusBadge status={etapa.status} /></TableCell>
                         <TableCell className="text-right">

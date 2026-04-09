@@ -435,7 +435,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
                   <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhuma despesa com vencimento</TableCell></TableRow>
                 ) : fluxoCaixa.map((d: any) => (
                   <TableRow key={d.id}>
-                    <TableCell className="whitespace-nowrap">{new Date(d.data_vencimento).toLocaleDateString("pt-BR")}</TableCell>
+                    <TableCell className="whitespace-nowrap">{new Date(d.data_vencimento + "T12:00:00").toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell className="font-medium">{d.descricao}</TableCell>
                     <TableCell>{d.fornecedores?.nome || "—"}</TableCell>
                     <TableCell><Badge variant="outline" className="text-xs whitespace-nowrap">{categoriaLabel[d.categoria] || d.categoria}</Badge></TableCell>

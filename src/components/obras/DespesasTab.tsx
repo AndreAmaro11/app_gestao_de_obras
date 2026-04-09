@@ -498,7 +498,7 @@ const ExpandableRow = ({ d, children, canExpand, hasChildren, isExpanded, onTogg
             </button>
           ) : null}
         </TableCell>
-        <TableCell className="whitespace-nowrap">{new Date(d.data).toLocaleDateString("pt-BR")}</TableCell>
+        <TableCell className="whitespace-nowrap">{new Date(d.data + "T12:00:00").toLocaleDateString("pt-BR")}</TableCell>
         <TableCell className="font-medium">{d.descricao}</TableCell>
         <TableCell>{d.etapas?.nome || "—"}</TableCell>
         <TableCell>{d.fornecedores?.nome || "—"}</TableCell>
@@ -507,7 +507,7 @@ const ExpandableRow = ({ d, children, canExpand, hasChildren, isExpanded, onTogg
         <TableCell className={`whitespace-nowrap ${d.valor_real > d.valor_previsto ? "text-destructive font-medium" : ""}`}>
           {d.valor_real > 0 ? `R$ ${fmt(d.valor_real)}` : "—"}
         </TableCell>
-        <TableCell className="whitespace-nowrap">{d.data_vencimento ? new Date(d.data_vencimento).toLocaleDateString("pt-BR") : "—"}</TableCell>
+        <TableCell className="whitespace-nowrap">{d.data_vencimento ? new Date(d.data_vencimento + "T12:00:00").toLocaleDateString("pt-BR") : "—"}</TableCell>
         <TableCell className="text-center font-mono">
           {canExpand ? <Badge variant="secondary" className="text-xs cursor-pointer" onClick={onToggleExpand}>{d.parcelas || children.length}x</Badge> : (d.parcelas || 1)}
         </TableCell>
@@ -526,14 +526,14 @@ const ExpandableRow = ({ d, children, canExpand, hasChildren, isExpanded, onTogg
       {isExpanded && expandedItems.map((c: any) => (
         <TableRow key={c.id} className="bg-muted/20">
           <TableCell></TableCell>
-          <TableCell className="text-muted-foreground text-sm whitespace-nowrap">{new Date(c.data).toLocaleDateString("pt-BR")}</TableCell>
+          <TableCell className="text-muted-foreground text-sm whitespace-nowrap">{new Date(c.data + "T12:00:00").toLocaleDateString("pt-BR")}</TableCell>
           <TableCell className="text-sm pl-6">{c.descricao}</TableCell>
           <TableCell className="text-sm">{c.etapas?.nome || "—"}</TableCell>
           <TableCell className="text-sm">{c.fornecedores?.nome || "—"}</TableCell>
           <TableCell></TableCell>
           <TableCell className="text-sm whitespace-nowrap">R$ {fmt(c.valor_previsto)}</TableCell>
           <TableCell className="text-sm whitespace-nowrap">R$ {fmt(c.valor_real)}</TableCell>
-          <TableCell className="text-sm whitespace-nowrap">{c.data_vencimento ? new Date(c.data_vencimento).toLocaleDateString("pt-BR") : "—"}</TableCell>
+          <TableCell className="text-sm whitespace-nowrap">{c.data_vencimento ? new Date(c.data_vencimento + "T12:00:00").toLocaleDateString("pt-BR") : "—"}</TableCell>
           <TableCell className="text-center text-sm font-mono">{c.parcela_numero || "—"}</TableCell>
           <TableCell>
             {!c.virtual && <Switch checked={c.pago} onCheckedChange={() => onTogglePago(c)} />}
