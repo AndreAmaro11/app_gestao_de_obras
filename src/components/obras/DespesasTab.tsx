@@ -471,11 +471,10 @@ const DespesasTab = ({ obraId }: Props) => {
   );
 };
 
-const ExpandableRow = ({ d, children, canExpand, hasChildren, isExpanded, onToggleExpand, onTogglePago, onEdit, onDelete }: {
+const ExpandableRow = ({ d, children, canExpand, hasChildren, isExpanded, onToggleExpand, onTogglePago, onEdit, onDelete, onAnexos }: {
   d: any; children: any[]; canExpand: boolean; hasChildren: boolean; isExpanded: boolean;
-  onToggleExpand: () => void; onTogglePago: (d: any) => void; onEdit: (d: any) => void; onDelete: () => void;
+  onToggleExpand: () => void; onTogglePago: (d: any) => void; onEdit: (d: any) => void; onDelete: () => void; onAnexos: (id: string) => void;
 }) => {
-  // Generate virtual parcelas if parent has parcelas > 1 but no children yet
   const virtualParcelas = !hasChildren && d.parcelas > 1 ? Array.from({ length: d.parcelas }, (_, i) => {
     const valorParcela = Math.round(d.valor_real / d.parcelas * 100) / 100;
     const valorPrevParcela = Math.round(d.valor_previsto / d.parcelas * 100) / 100;
@@ -483,15 +482,11 @@ const ExpandableRow = ({ d, children, canExpand, hasChildren, isExpanded, onTogg
     const vencimento = baseDate ? new Date(baseDate) : null;
     if (vencimento) vencimento.setMonth(vencimento.getMonth() + i);
     return {
-      id: `virtual-${d.id}-${i}`,
-      parcela_numero: i + 1,
-      descricao: `${d.descricao} (${i + 1}/${d.parcelas})`,
-      data: d.data,
-      valor_previsto: valorPrevParcela,
-      valor_real: valorParcela,
+      id: `virtual-${d.id}-${i}`, parcela_numero: i + 1,
+      descricao: `${d.descricao} (${i + 1}/${d.parcelas})`, data: d.data,
+      valor_previsto: valorPrevParcela, valor_real: valorParcela,
       data_vencimento: vencimento ? vencimento.toISOString().split("T")[0] : null,
-      pago: false,
-      virtual: true,
+      pago: false, virtual: true,
     };
   }) : [];
 
@@ -525,6 +520,9 @@ const ExpandableRow = ({ d, children, canExpand, hasChildren, isExpanded, onTogg
         </TableCell>
         <TableCell className="text-right">
           <div className="flex justify-end gap-1">
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onAnexos(d.id)} title="Anexos">
+              <Paperclip className="h-3.5 w-3.5" />
+            </Button>
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(d)}><Pencil className="h-3.5 w-3.5" /></Button>
             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={onDelete}>
               <Trash2 className="h-3.5 w-3.5" />
@@ -552,6 +550,107 @@ const ExpandableRow = ({ d, children, canExpand, hasChildren, isExpanded, onTogg
         </TableRow>
       ))}
     </>
+  );
+};
+
+// Anexos Dialog Component
+const AnexosDialog = ({ despesaId, open, onOpenChange }: { despesaId: string | null; open: boolean; onOpenChange: (v: boolean) => void }) => {
+  const { data: anexos, isLoading } = useDespesaAnexos(despesaId || undefined);
+  const uploadAnexo = useUploadDespesaAnexo();
+  const deleteAnexo = useDeleteDespesaAnexo();
+  const downloadAnexo = useDownloadDespesaAnexo();
+  const { toast } = useToast();
+  const fileInputRef = useState<HTMLInputElement | null>(null);
+
+  const handleUpload = async (files: FileList) => {
+    if (!despesaId) return;
+    for (const file of Array.from(files)) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast({ title: "Arquivo muito grande", description: `${file.name} excede 10MB`, variant: "destructive" });
+        continue;
+      }
+      try {
+        await uploadAnexo.mutateAsync({ despesaId, file });
+        toast({ title: `${file.name} anexado!` });
+      } catch (err: any) {
+        toast({ title: "Erro no upload", description: err.message, variant: "destructive" });
+      }
+    }
+  };
+
+  const handleDelete = async (anexo: any) => {
+    try {
+      await deleteAnexo.mutateAsync({ id: anexo.id, despesaId: anexo.despesa_id, url: anexo.url });
+      toast({ title: "Anexo removido" });
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const formatSize = (bytes: number | null) => {
+    if (!bytes) return "";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const getFileIcon = (tipo: string | null) => {
+    if (tipo?.startsWith("image/")) return <ImageIcon className="h-4 w-4 text-blue-500" />;
+    return <FileText className="h-4 w-4 text-muted-foreground" />;
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>Anexos da Despesa</DialogTitle></DialogHeader>
+        <div className="space-y-4">
+          {/* Upload area */}
+          <label className="flex flex-col items-center justify-center border-2 border-dashed border-muted-foreground/30 rounded-lg p-6 cursor-pointer hover:border-primary/50 transition-colors">
+            <Paperclip className="h-8 w-8 text-muted-foreground mb-2" />
+            <span className="text-sm text-muted-foreground">Clique ou arraste arquivos</span>
+            <span className="text-xs text-muted-foreground mt-1">Comprovantes, notas fiscais, etc. (máx. 10MB)</span>
+            <input
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(e) => e.target.files && handleUpload(e.target.files)}
+            />
+          </label>
+
+          {/* Loading */}
+          {uploadAnexo.isPending && (
+            <p className="text-sm text-muted-foreground text-center">Enviando...</p>
+          )}
+
+          {/* File list */}
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground text-center">Carregando anexos...</p>
+          ) : !anexos?.length ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Nenhum anexo</p>
+          ) : (
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {anexos.map((a: any) => (
+                <div key={a.id} className="flex items-center gap-3 p-2 rounded-md border bg-muted/20">
+                  {getFileIcon(a.tipo_arquivo)}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{a.nome}</p>
+                    <p className="text-xs text-muted-foreground">{formatSize(a.tamanho)}</p>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => downloadAnexo(a.url, a.nome)} title="Baixar">
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(a)} title="Excluir">
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
