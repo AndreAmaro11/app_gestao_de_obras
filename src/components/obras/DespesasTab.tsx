@@ -321,7 +321,12 @@ const DespesasTab = ({ obraId }: Props) => {
         </DialogContent>
       </Dialog>
 
-      <DataToolbar
+      {/* Anexos Dialog */}
+      <AnexosDialog
+        despesaId={anexosDespesaId}
+        open={!!anexosDespesaId}
+        onOpenChange={(open) => { if (!open) setAnexosDespesaId(null); }}
+      />
         searchPlaceholder="Buscar despesa..."
         searchValue={search}
         onSearchChange={setSearch}
