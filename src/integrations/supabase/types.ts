@@ -103,6 +103,47 @@ export type Database = {
           },
         ]
       }
+      despesa_anexos: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          despesa_id: string
+          id: string
+          nome: string
+          tamanho: number | null
+          tipo_arquivo: string | null
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          despesa_id: string
+          id?: string
+          nome: string
+          tamanho?: number | null
+          tipo_arquivo?: string | null
+          url: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          despesa_id?: string
+          id?: string
+          nome?: string
+          tamanho?: number | null
+          tipo_arquivo?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "despesa_anexos_despesa_id_fkey"
+            columns: ["despesa_id"]
+            isOneToOne: false
+            referencedRelation: "despesas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       despesas: {
         Row: {
           categoria: Database["public"]["Enums"]["categoria_despesa"]
