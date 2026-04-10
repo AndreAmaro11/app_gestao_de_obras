@@ -40,8 +40,8 @@ const FinanceiroTab = ({ obraId }: Props) => {
     if (!despesas) return [];
     const years = new Set<string>();
     despesas.forEach((d: any) => {
-      if (d.data_vencimento) years.add(String(new Date(d.data_vencimento).getFullYear()));
-      if (d.data) years.add(String(new Date(d.data).getFullYear()));
+      if (d.data_vencimento) years.add(String(new Date(d.data_vencimento + "T12:00:00").getFullYear()));
+      if (d.data) years.add(String(new Date(d.data + "T12:00:00").getFullYear()));
     });
     return Array.from(years).sort();
   }, [despesas]);
@@ -171,7 +171,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
     const etapaValues: Record<string, number> = {};
     let etapaTotal = 0;
     items.forEach((d: any) => {
-      const m = `${new Date(d.data_vencimento).getFullYear()}-${String(new Date(d.data_vencimento).getMonth() + 1).padStart(2, "0")}`;
+      const m = `${new Date(d.data_vencimento + "T12:00:00").getFullYear()}-${String(new Date(d.data_vencimento + "T12:00:00").getMonth() + 1).padStart(2, "0")}`;
       etapaValues[m] = (etapaValues[m] || 0) + (d.valor_real || d.valor_previsto);
       etapaTotal += (d.valor_real || d.valor_previsto);
     });
@@ -189,7 +189,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
         const fornValues: Record<string, number> = {};
         let fornTotal = 0;
         fitems.forEach((d: any) => {
-          const m = `${new Date(d.data_vencimento).getFullYear()}-${String(new Date(d.data_vencimento).getMonth() + 1).padStart(2, "0")}`;
+          const m = `${new Date(d.data_vencimento + "T12:00:00").getFullYear()}-${String(new Date(d.data_vencimento + "T12:00:00").getMonth() + 1).padStart(2, "0")}`;
           fornValues[m] = (fornValues[m] || 0) + (d.valor_real || d.valor_previsto);
           fornTotal += (d.valor_real || d.valor_previsto);
         });
@@ -200,7 +200,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
 
   const monthTotals: Record<string, number> = {};
   fluxoCaixa.forEach((d: any) => {
-    const m = `${new Date(d.data_vencimento).getFullYear()}-${String(new Date(d.data_vencimento).getMonth() + 1).padStart(2, "0")}`;
+    const m = `${new Date(d.data_vencimento + "T12:00:00").getFullYear()}-${String(new Date(d.data_vencimento + "T12:00:00").getMonth() + 1).padStart(2, "0")}`;
     monthTotals[m] = (monthTotals[m] || 0) + (d.valor_real || d.valor_previsto);
   });
   const grandTotal = Object.values(monthTotals).reduce((s, v) => s + v, 0);

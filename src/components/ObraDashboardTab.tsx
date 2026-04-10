@@ -139,7 +139,7 @@ const ObraDashboardTab = ({ obraId, obraNome }: Props) => {
       if (childParcelas.length > 0) {
         childParcelas.forEach((c: any) => {
           if (!c.data_vencimento) return;
-          const dt = new Date(c.data_vencimento);
+          const dt = new Date(c.data_vencimento + "T12:00:00");
           const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
           saidasPorMes[key] = (saidasPorMes[key] || 0) + (c.valor_real || c.valor_previsto);
         });
@@ -153,7 +153,7 @@ const ObraDashboardTab = ({ obraId, obraNome }: Props) => {
           saidasPorMes[key] = (saidasPorMes[key] || 0) + valorParcela;
         }
       } else if (d.data_vencimento) {
-        const dt = new Date(d.data_vencimento);
+        const dt = new Date(d.data_vencimento + "T12:00:00");
         const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
         saidasPorMes[key] = (saidasPorMes[key] || 0) + (d.valor_real || d.valor_previsto);
       }
