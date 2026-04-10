@@ -326,7 +326,8 @@ const DespesasTab = ({ obraId }: Props) => {
         despesaId={anexosDespesaId}
         open={!!anexosDespesaId}
         onOpenChange={(open) => { if (!open) setAnexosDespesaId(null); }}
-      />
+
+      <DataToolbar
         searchPlaceholder="Buscar despesa..."
         searchValue={search}
         onSearchChange={setSearch}
