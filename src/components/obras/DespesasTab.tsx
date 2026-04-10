@@ -74,6 +74,7 @@ const DespesasTab = ({ obraId }: Props) => {
   const [newForn, setNewForn] = useState({ nome: "", nome_fantasia: "", cnpj: "", telefone: "", email: "", endereco: "", observacao: "", tipo: "misto" });
   const [agrupado, setAgrupado] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [anexosDespesaId, setAnexosDespesaId] = useState<string | null>(null);
 
 
   const resetForm = () => {
