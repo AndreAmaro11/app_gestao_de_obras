@@ -597,7 +597,7 @@ const AnexosDialog = ({ despesaId, open, onOpenChange }: { despesaId: string | n
   };
 
   const getFileIcon = (tipo: string | null) => {
-    if (tipo?.startsWith("image/")) return <ImageIcon className="h-4 w-4 text-blue-500" />;
+    if (tipo?.startsWith("image/")) return <ImageIcon className="h-4 w-4 text-primary" />;
     return <FileText className="h-4 w-4 text-muted-foreground" />;
   };
 
