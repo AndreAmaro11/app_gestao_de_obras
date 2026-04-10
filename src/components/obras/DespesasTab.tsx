@@ -417,6 +417,7 @@ const DespesasTab = ({ obraId }: Props) => {
                             onTogglePago={handleTogglePago}
                             onEdit={openEdit}
                             onDelete={() => deleteDespesa.mutate({ id: d.id, obra_id: obraId })}
+                            onAnexos={(id) => setAnexosDespesaId(id)}
                           />
                         );
                       })}
@@ -451,6 +452,7 @@ const DespesasTab = ({ obraId }: Props) => {
                       onTogglePago={handleTogglePago}
                       onEdit={openEdit}
                       onDelete={() => deleteDespesa.mutate({ id: d.id, obra_id: obraId })}
+                      onAnexos={(id) => setAnexosDespesaId(id)}
                     />
                   );
                 })}
