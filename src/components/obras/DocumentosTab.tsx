@@ -61,7 +61,6 @@ const useRenameDocumento = () => {
 /* ===== Video Thumbnail Component ===== */
 const VideoThumbnail = ({ url, className }: { url: string; className?: string }) => {
   const [thumbUrl, setThumbUrl] = useState<string | null>(null);
-  const [thumbUrl, setThumbUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const video = document.createElement("video");
