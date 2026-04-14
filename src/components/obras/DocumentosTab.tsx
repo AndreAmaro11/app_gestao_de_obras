@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -10,7 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   Folder, FolderPlus, Upload, Download, Trash2, FileText, List, LayoutGrid,
   Image as ImageIcon, Eye, ExternalLink, Pencil, FileSpreadsheet, FileArchive,
-  File, ChevronRight, CloudUpload, MoreVertical, Grid3X3
+  File, ChevronRight, CloudUpload, MoreVertical, Grid3X3, ZoomIn, ZoomOut,
+  ChevronLeft, X, RotateCw
 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -61,7 +62,8 @@ const DocumentosTab = ({ obraId }: Props) => {
   const [novaPasta, setNovaPasta] = useState("");
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
-  const [previewDoc, setPreviewDoc] = useState<{ url: string; nome: string; tipo: string | null } | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; nome: string; tipo: string | null; index: number } | null>(null);
+  const [zoom, setZoom] = useState(1);
   const [renameDoc, setRenameDoc] = useState<{ id: string; nome: string } | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [isDragging, setIsDragging] = useState(false);
@@ -153,7 +155,10 @@ const DocumentosTab = ({ obraId }: Props) => {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const openFile = async (url: string, nome: string, tipo: string | null, inNewTab: boolean) => {
+  // All viewable documents for navigation
+  const allDocs = useMemo(() => documentos || [], [documentos]);
+
+  const openFile = async (url: string, nome: string, tipo: string | null, inNewTab: boolean, docIndex?: number) => {
     const { data, error } = await supabase.storage.from("obra-documentos").createSignedUrl(url, 3600);
     if (error || !data?.signedUrl) {
       toast({ title: "Erro ao abrir arquivo", variant: "destructive" });
@@ -162,7 +167,19 @@ const DocumentosTab = ({ obraId }: Props) => {
     if (inNewTab) {
       window.open(data.signedUrl, "_blank");
     } else {
-      setPreviewDoc({ url: data.signedUrl, nome, tipo });
+      setZoom(1);
+      setPreviewDoc({ url: data.signedUrl, nome, tipo, index: docIndex ?? 0 });
+    }
+  };
+
+  const navigatePreview = async (direction: -1 | 1) => {
+    if (!previewDoc || !allDocs.length) return;
+    const newIndex = (previewDoc.index + direction + allDocs.length) % allDocs.length;
+    const doc = allDocs[newIndex];
+    const { data } = await supabase.storage.from("obra-documentos").createSignedUrl(doc.url, 3600);
+    if (data?.signedUrl) {
+      setZoom(1);
+      setPreviewDoc({ url: data.signedUrl, nome: doc.nome, tipo: doc.tipo_arquivo, index: newIndex });
     }
   };
 
@@ -209,24 +226,80 @@ const DocumentosTab = ({ obraId }: Props) => {
       )}
 
       {/* Preview Dialog */}
-      <Dialog open={!!previewDoc} onOpenChange={(v) => { if (!v) setPreviewDoc(null); }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] rounded-2xl">
-          <DialogHeader><DialogTitle className="text-lg">{previewDoc?.nome}</DialogTitle></DialogHeader>
-          <div className="flex-1 overflow-auto rounded-xl">
-            {previewDoc && isImage(previewDoc.tipo) ? (
-              <img src={previewDoc.url} alt={previewDoc.nome} className="max-w-full max-h-[70vh] mx-auto rounded-lg" />
-            ) : previewDoc?.tipo === "application/pdf" ? (
-              <iframe src={previewDoc.url} className="w-full h-[70vh] rounded-lg" title={previewDoc.nome} />
-            ) : (
-              <div className="text-center py-16 space-y-4">
-                <div className="h-20 w-20 rounded-2xl bg-muted flex items-center justify-center mx-auto">
-                  <FileText className="h-10 w-10 text-muted-foreground" />
+      <Dialog open={!!previewDoc} onOpenChange={(v) => { if (!v) { setPreviewDoc(null); setZoom(1); } }}>
+        <DialogContent className="max-w-5xl max-h-[95vh] rounded-2xl p-0 overflow-hidden">
+          {/* Top bar */}
+          <div className="flex items-center justify-between px-4 py-3 border-b bg-card">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-sm font-medium truncate">{previewDoc?.nome}</span>
+              {allDocs.length > 1 && (
+                <span className="text-xs text-muted-foreground shrink-0">
+                  {(previewDoc?.index ?? 0) + 1} / {allDocs.length}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1">
+              {previewDoc && isImage(previewDoc.tipo) && (
+                <>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setZoom(z => Math.max(0.25, z - 0.25))} title="Diminuir zoom">
+                    <ZoomOut className="h-4 w-4" />
+                  </Button>
+                  <span className="text-xs font-mono w-12 text-center">{Math.round(zoom * 100)}%</span>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setZoom(z => Math.min(5, z + 0.25))} title="Aumentar zoom">
+                    <ZoomIn className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setZoom(1)} title="Reset zoom">
+                    <RotateCw className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(previewDoc?.url, "_blank")} title="Abrir em nova aba">
+                <ExternalLink className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setPreviewDoc(null); setZoom(1); }} title="Fechar">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Content with navigation arrows */}
+          <div className="relative flex items-center justify-center" style={{ height: "calc(90vh - 60px)" }}>
+            {/* Left arrow */}
+            {allDocs.length > 1 && (
+              <Button variant="ghost" size="icon" className="absolute left-2 z-10 h-10 w-10 rounded-full bg-card/80 backdrop-blur shadow" onClick={() => navigatePreview(-1)}>
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+            )}
+
+            <div className="flex-1 overflow-auto h-full flex items-center justify-center p-4">
+              {previewDoc && isImage(previewDoc.tipo) ? (
+                <img
+                  src={previewDoc.url}
+                  alt={previewDoc.nome}
+                  className="rounded-lg transition-transform duration-200 cursor-zoom-in"
+                  style={{ transform: `scale(${zoom})`, transformOrigin: "center center", maxWidth: zoom <= 1 ? "100%" : "none", maxHeight: zoom <= 1 ? "100%" : "none" }}
+                  onClick={() => setZoom(z => z < 2 ? z + 0.5 : 1)}
+                />
+              ) : previewDoc?.tipo === "application/pdf" ? (
+                <iframe src={previewDoc.url} className="w-full h-full rounded-lg" title={previewDoc.nome} />
+              ) : (
+                <div className="text-center py-16 space-y-4">
+                  <div className="h-20 w-20 rounded-2xl bg-muted flex items-center justify-center mx-auto">
+                    <FileText className="h-10 w-10 text-muted-foreground" />
+                  </div>
+                  <p className="text-muted-foreground">Visualização não disponível</p>
+                  <Button variant="outline" className="rounded-xl" onClick={() => window.open(previewDoc?.url, "_blank")}>
+                    <ExternalLink className="h-4 w-4 mr-2" />Abrir em nova aba
+                  </Button>
                 </div>
-                <p className="text-muted-foreground">Visualização não disponível</p>
-                <Button variant="outline" className="rounded-xl" onClick={() => window.open(previewDoc?.url, "_blank")}>
-                  <ExternalLink className="h-4 w-4 mr-2" />Abrir em nova aba
-                </Button>
-              </div>
+              )}
+            </div>
+
+            {/* Right arrow */}
+            {allDocs.length > 1 && (
+              <Button variant="ghost" size="icon" className="absolute right-2 z-10 h-10 w-10 rounded-full bg-card/80 backdrop-blur shadow" onClick={() => navigatePreview(1)}>
+                <ChevronRight className="h-5 w-5" />
+              </Button>
             )}
           </div>
         </DialogContent>
@@ -370,7 +443,7 @@ const DocumentosTab = ({ obraId }: Props) => {
             {documentos?.map((d) => {
               const fic = fileIconColor(d.tipo_arquivo);
               return (
-                <div key={d.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 cursor-pointer transition-colors group" onClick={() => openFile(d.url, d.nome, d.tipo_arquivo, false)}>
+                <div key={d.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 cursor-pointer transition-colors group" onClick={() => openFile(d.url, d.nome, d.tipo_arquivo, false, documentos?.indexOf(d))}>
                   <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center shrink-0", fic.bg)}>
                     <fic.icon className={cn("h-5 w-5", fic.color)} />
                   </div>
@@ -380,7 +453,7 @@ const DocumentosTab = ({ obraId }: Props) => {
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                     <DocActions
-                      onOpen={() => openFile(d.url, d.nome, d.tipo_arquivo, false)}
+                      onOpen={() => openFile(d.url, d.nome, d.tipo_arquivo, false, documentos?.indexOf(d))}
                       onOpenTab={() => openFile(d.url, d.nome, d.tipo_arquivo, true)}
                       onRename={() => { setRenameDoc({ id: d.id, nome: d.nome }); setRenameValue(d.nome); }}
                       onDownload={() => downloadDoc(d.url, d.nome)}
@@ -419,7 +492,7 @@ const DocumentosTab = ({ obraId }: Props) => {
             <DocCardItem
               key={d.id}
               doc={d}
-              onOpen={() => openFile(d.url, d.nome, d.tipo_arquivo, false)}
+              onOpen={() => openFile(d.url, d.nome, d.tipo_arquivo, false, documentos?.indexOf(d))}
               onOpenTab={() => openFile(d.url, d.nome, d.tipo_arquivo, true)}
               onRename={() => { setRenameDoc({ id: d.id, nome: d.nome }); setRenameValue(d.nome); }}
               onDownload={() => downloadDoc(d.url, d.nome)}
@@ -452,8 +525,8 @@ const DocumentosTab = ({ obraId }: Props) => {
             <DocGridItem
               key={d.id}
               doc={d}
-              onOpen={() => openFile(d.url, d.nome, d.tipo_arquivo, false)}
-              onOpenTab={() => openFile(d.url, d.nome, d.tipo_arquivo, true)}
+              onOpen={() => openFile(d.url, d.nome, d.tipo_arquivo, false, documentos?.indexOf(d))}
+              onOpenTab={() => openFile(d.url, d.nome, d.tipo_arquivo, true, documentos?.indexOf(d))}
               onRename={() => { setRenameDoc({ id: d.id, nome: d.nome }); setRenameValue(d.nome); }}
               onDownload={() => downloadDoc(d.url, d.nome)}
               onDelete={() => deleteDoc.mutate({ id: d.id, obraId, url: d.url })}
