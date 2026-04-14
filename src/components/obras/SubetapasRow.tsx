@@ -60,17 +60,24 @@ const SubetapasRow = ({ etapaId, obraId, onSubetapaChange }: Props) => {
     setShowAdd(true);
   };
 
+  const deriveStatus = (pct: number): string => {
+    if (pct >= 100) return "concluida";
+    if (pct > 0) return "em_andamento";
+    return "nao_iniciada";
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const pct = Number(percentual);
+      const autoStatus = deriveStatus(pct);
       if (editingSub) {
         const newEtapaId = moveEtapaId && moveEtapaId !== etapaId ? moveEtapaId : etapaId;
         await updateSub.mutateAsync({
           id: editingSub.id, etapa_id: newEtapaId, nome,
           inicio_previsto: inicioPrev || null, fim_previsto: fimPrev || null,
-          status: status as any, percentual_concluido: Number(percentual),
+          status: autoStatus as any, percentual_concluido: pct,
         });
-        // If moved to another etapa, invalidate both
         if (newEtapaId !== etapaId) {
           qc.invalidateQueries({ queryKey: ["subetapas", newEtapaId] });
           qc.invalidateQueries({ queryKey: ["subetapas", etapaId] });
