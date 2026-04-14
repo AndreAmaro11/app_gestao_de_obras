@@ -18,6 +18,7 @@ export const usePastas = (obraId: string, pastaId?: string | null) => {
         .select("*")
         .eq("obra_id", obraId)
         .is("deleted_at", null)
+        .order("ordem")
         .order("nome");
       if (pastaId) {
         q = q.eq("pasta_pai_id", pastaId);
@@ -41,6 +42,20 @@ export const useCreatePasta = () => {
       return data;
     },
     onSuccess: (data) => qc.invalidateQueries({ queryKey: ["pastas", data.obra_id] }),
+  });
+};
+
+export const useReorderPastas = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ obraId, updates }: { obraId: string; updates: { id: string; ordem: number }[] }) => {
+      for (const u of updates) {
+        const { error } = await supabase.from("pastas").update({ ordem: u.ordem }).eq("id", u.id);
+        if (error) throw error;
+      }
+      return obraId;
+    },
+    onSuccess: (obraId) => qc.invalidateQueries({ queryKey: ["pastas", obraId] }),
   });
 };
 

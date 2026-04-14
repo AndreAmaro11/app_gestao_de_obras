@@ -4,14 +4,14 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { usePastas, useCreatePasta, useDeletePasta, useDocumentos, useUploadDocumento, useDeleteDocumento, useDownloadDocumento } from "@/hooks/useDocumentos";
+import { usePastas, useCreatePasta, useDeletePasta, useReorderPastas, useDocumentos, useUploadDocumento, useDeleteDocumento, useDownloadDocumento } from "@/hooks/useDocumentos";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Folder, FolderPlus, Upload, Download, Trash2, FileText, List, LayoutGrid,
   Image as ImageIcon, Eye, ExternalLink, Pencil, FileSpreadsheet, FileArchive,
   File, ChevronRight, CloudUpload, MoreVertical, Grid3X3, ZoomIn, ZoomOut,
-  ChevronLeft, X, RotateCw
+  ChevronLeft, X, RotateCw, Play, GripVertical, Video
 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -25,11 +25,13 @@ type ViewMode = "list" | "cards" | "grid";
 
 const isImage = (tipo: string | null) => tipo?.startsWith("image/");
 const isPdf = (tipo: string | null) => tipo === "application/pdf";
+const isVideo = (tipo: string | null) => !!tipo && tipo.startsWith("video/");
 const isSpreadsheet = (tipo: string | null) => !!tipo && (tipo.includes("spreadsheet") || tipo.includes("excel") || tipo.includes("csv"));
 const isArchive = (tipo: string | null) => !!tipo && (tipo.includes("zip") || tipo.includes("rar") || tipo.includes("7z") || tipo.includes("tar"));
 
 const fileIconColor = (tipo: string | null) => {
   if (isImage(tipo)) return { icon: ImageIcon, color: "text-emerald-500", bg: "bg-emerald-500/10" };
+  if (isVideo(tipo)) return { icon: Video, color: "text-purple-500", bg: "bg-purple-500/10" };
   if (isPdf(tipo)) return { icon: FileText, color: "text-red-500", bg: "bg-red-500/10" };
   if (isSpreadsheet(tipo)) return { icon: FileSpreadsheet, color: "text-green-600", bg: "bg-green-600/10" };
   if (isArchive(tipo)) return { icon: FileArchive, color: "text-amber-500", bg: "bg-amber-500/10" };
@@ -56,6 +58,57 @@ const useRenameDocumento = () => {
   });
 };
 
+/* ===== Video Thumbnail Component ===== */
+const VideoThumbnail = ({ url, className }: { url: string; className?: string }) => {
+  const [thumbUrl, setThumbUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const video = document.createElement("video");
+    video.crossOrigin = "anonymous";
+    video.muted = true;
+    video.preload = "metadata";
+    video.src = url;
+    video.currentTime = 1;
+    video.addEventListener("seeked", () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth || 320;
+        canvas.height = video.videoHeight || 180;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          setThumbUrl(canvas.toDataURL("image/jpeg", 0.7));
+        }
+      } catch { /* CORS or other error */ }
+    }, { once: true });
+    video.addEventListener("error", () => { /* ignore */ }, { once: true });
+  }, [url]);
+
+  if (thumbUrl) {
+    return (
+      <div className={cn("relative", className)}>
+        <img src={thumbUrl} alt="Video thumbnail" className="w-full h-full object-cover" />
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+          <div className="h-10 w-10 rounded-full bg-black/60 flex items-center justify-center">
+            <Play className="h-5 w-5 text-white ml-0.5" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn("relative flex items-center justify-center bg-purple-500/10", className)}>
+      <Video className="h-8 w-8 text-purple-500" />
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="h-10 w-10 rounded-full bg-black/40 flex items-center justify-center">
+          <Play className="h-5 w-5 text-white ml-0.5" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const DocumentosTab = ({ obraId }: Props) => {
   const [pastaAtual, setPastaAtual] = useState<string | null>(null);
   const [breadcrumbs, setBreadcrumbs] = useState<{ id: string | null; nome: string }[]>([{ id: null, nome: "Documentos" }]);
@@ -67,6 +120,8 @@ const DocumentosTab = ({ obraId }: Props) => {
   const [renameDoc, setRenameDoc] = useState<{ id: string; nome: string } | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [isDragging, setIsDragging] = useState(false);
+  const [dragPastaId, setDragPastaId] = useState<string | null>(null);
+  const [dragOverPastaId, setDragOverPastaId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -75,27 +130,31 @@ const DocumentosTab = ({ obraId }: Props) => {
   const { data: documentos } = useDocumentos(obraId, pastaAtual);
   const createPasta = useCreatePasta();
   const deletePasta = useDeletePasta();
+  const reorderPastas = useReorderPastas();
   const uploadDoc = useUploadDocumento();
   const deleteDoc = useDeleteDocumento();
   const downloadDoc = useDownloadDocumento();
   const renameDocMut = useRenameDocumento();
 
-  // Drag & Drop handlers
+  // Drag & Drop file upload handlers
   const handleDragOver = useCallback((e: React.DragEvent) => {
+    if (dragPastaId) return; // folder reorder in progress
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(true);
-  }, []);
+  }, [dragPastaId]);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
+    if (dragPastaId) return;
     e.preventDefault();
     e.stopPropagation();
     if (dropRef.current && !dropRef.current.contains(e.relatedTarget as Node)) {
       setIsDragging(false);
     }
-  }, []);
+  }, [dragPastaId]);
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
+    if (dragPastaId) return;
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
@@ -109,7 +168,54 @@ const DocumentosTab = ({ obraId }: Props) => {
         toast({ title: "Erro upload", description: err.message, variant: "destructive" });
       }
     }
-  }, [obraId, pastaAtual, uploadDoc, toast]);
+  }, [obraId, pastaAtual, uploadDoc, toast, dragPastaId]);
+
+  // Folder drag-to-reorder handlers
+  const handleFolderDragStart = (e: React.DragEvent, pastaId: string) => {
+    e.stopPropagation();
+    setDragPastaId(pastaId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", pastaId);
+  };
+
+  const handleFolderDragOver = (e: React.DragEvent, pastaId: string) => {
+    if (!dragPastaId || dragPastaId === pastaId) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverPastaId(pastaId);
+  };
+
+  const handleFolderDragLeave = () => {
+    setDragOverPastaId(null);
+  };
+
+  const handleFolderDrop = async (e: React.DragEvent, targetPastaId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverPastaId(null);
+    if (!dragPastaId || !pastas || dragPastaId === targetPastaId) {
+      setDragPastaId(null);
+      return;
+    }
+    const ordered = [...pastas];
+    const fromIdx = ordered.findIndex(p => p.id === dragPastaId);
+    const toIdx = ordered.findIndex(p => p.id === targetPastaId);
+    if (fromIdx < 0 || toIdx < 0) { setDragPastaId(null); return; }
+    const [moved] = ordered.splice(fromIdx, 1);
+    ordered.splice(toIdx, 0, moved);
+    const updates = ordered.map((p, i) => ({ id: p.id, ordem: i }));
+    try {
+      await reorderPastas.mutateAsync({ obraId, updates });
+    } catch (err: any) {
+      toast({ title: "Erro ao reordenar", description: err.message, variant: "destructive" });
+    }
+    setDragPastaId(null);
+  };
+
+  const handleFolderDragEnd = () => {
+    setDragPastaId(null);
+    setDragOverPastaId(null);
+  };
 
   const navegarPasta = (id: string, nome: string) => {
     setPastaAtual(id);
@@ -155,7 +261,6 @@ const DocumentosTab = ({ obraId }: Props) => {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  // All viewable documents for navigation
   const allDocs = useMemo(() => documentos || [], [documentos]);
 
   const openFile = async (url: string, nome: string, tipo: string | null, inNewTab: boolean, docIndex?: number) => {
@@ -204,6 +309,15 @@ const DocumentosTab = ({ obraId }: Props) => {
     { mode: "grid", icon: <Grid3X3 className="h-4 w-4" />, label: "Grid" },
   ];
 
+  const folderDragProps = (pastaId: string) => ({
+    draggable: true,
+    onDragStart: (e: React.DragEvent) => handleFolderDragStart(e, pastaId),
+    onDragOver: (e: React.DragEvent) => handleFolderDragOver(e, pastaId),
+    onDragLeave: handleFolderDragLeave,
+    onDrop: (e: React.DragEvent) => handleFolderDrop(e, pastaId),
+    onDragEnd: handleFolderDragEnd,
+  });
+
   return (
     <div
       ref={dropRef}
@@ -213,7 +327,7 @@ const DocumentosTab = ({ obraId }: Props) => {
       onDrop={handleDrop}
     >
       {/* Drag overlay */}
-      {isDragging && (
+      {isDragging && !dragPastaId && (
         <div className="absolute inset-0 z-50 rounded-2xl border-2 border-dashed border-primary bg-primary/5 backdrop-blur-sm flex items-center justify-center animate-fade-in">
           <div className="text-center space-y-3">
             <div className="h-16 w-16 rounded-2xl gradient-primary flex items-center justify-center mx-auto">
@@ -228,7 +342,6 @@ const DocumentosTab = ({ obraId }: Props) => {
       {/* Preview Dialog */}
       <Dialog open={!!previewDoc} onOpenChange={(v) => { if (!v) { setPreviewDoc(null); setZoom(1); } }}>
         <DialogContent className="max-w-5xl max-h-[95vh] rounded-2xl p-0 overflow-hidden">
-          {/* Top bar */}
           <div className="flex items-center justify-between px-4 py-3 border-b bg-card">
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-sm font-medium truncate">{previewDoc?.nome}</span>
@@ -241,30 +354,18 @@ const DocumentosTab = ({ obraId }: Props) => {
             <div className="flex items-center gap-1">
               {previewDoc && isImage(previewDoc.tipo) && (
                 <>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setZoom(z => Math.max(0.25, z - 0.25))} title="Diminuir zoom">
-                    <ZoomOut className="h-4 w-4" />
-                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setZoom(z => Math.max(0.25, z - 0.25))}><ZoomOut className="h-4 w-4" /></Button>
                   <span className="text-xs font-mono w-12 text-center">{Math.round(zoom * 100)}%</span>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setZoom(z => Math.min(5, z + 0.25))} title="Aumentar zoom">
-                    <ZoomIn className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setZoom(1)} title="Reset zoom">
-                    <RotateCw className="h-4 w-4" />
-                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setZoom(z => Math.min(5, z + 0.25))}><ZoomIn className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setZoom(1)}><RotateCw className="h-4 w-4" /></Button>
                 </>
               )}
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(previewDoc?.url, "_blank")} title="Abrir em nova aba">
-                <ExternalLink className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setPreviewDoc(null); setZoom(1); }} title="Fechar">
-                <X className="h-4 w-4" />
-              </Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(previewDoc?.url, "_blank")}><ExternalLink className="h-4 w-4" /></Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setPreviewDoc(null); setZoom(1); }}><X className="h-4 w-4" /></Button>
             </div>
           </div>
 
-          {/* Content with navigation arrows */}
           <div className="relative flex items-center justify-center" style={{ height: "calc(90vh - 60px)" }}>
-            {/* Left arrow */}
             {allDocs.length > 1 && (
               <Button variant="ghost" size="icon" className="absolute left-2 z-10 h-10 w-10 rounded-full bg-card/80 backdrop-blur shadow" onClick={() => navigatePreview(-1)}>
                 <ChevronLeft className="h-5 w-5" />
@@ -279,6 +380,13 @@ const DocumentosTab = ({ obraId }: Props) => {
                   className="rounded-lg transition-transform duration-200 cursor-zoom-in"
                   style={{ transform: `scale(${zoom})`, transformOrigin: "center center", maxWidth: zoom <= 1 ? "100%" : "none", maxHeight: zoom <= 1 ? "100%" : "none" }}
                   onClick={() => setZoom(z => z < 2 ? z + 0.5 : 1)}
+                />
+              ) : previewDoc && isVideo(previewDoc.tipo) ? (
+                <video
+                  src={previewDoc.url}
+                  controls
+                  className="max-w-full max-h-full rounded-lg"
+                  autoPlay
                 />
               ) : previewDoc?.tipo === "application/pdf" ? (
                 <iframe src={previewDoc.url} className="w-full h-full rounded-lg" title={previewDoc.nome} />
@@ -295,7 +403,6 @@ const DocumentosTab = ({ obraId }: Props) => {
               )}
             </div>
 
-            {/* Right arrow */}
             {allDocs.length > 1 && (
               <Button variant="ghost" size="icon" className="absolute right-2 z-10 h-10 w-10 rounded-full bg-card/80 backdrop-blur shadow" onClick={() => navigatePreview(1)}>
                 <ChevronRight className="h-5 w-5" />
@@ -325,7 +432,6 @@ const DocumentosTab = ({ obraId }: Props) => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          {/* Breadcrumbs */}
           <div className="flex items-center gap-1 text-sm">
             {breadcrumbs.map((bc, i) => (
               <span key={i} className="flex items-center gap-1">
@@ -348,7 +454,6 @@ const DocumentosTab = ({ obraId }: Props) => {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* View mode */}
           <div className="flex items-center bg-muted/50 rounded-lg p-0.5">
             {viewModes.map(vm => (
               <Button
@@ -367,13 +472,11 @@ const DocumentosTab = ({ obraId }: Props) => {
             ))}
           </div>
 
-          {/* New folder */}
           <Button variant="outline" size="sm" className="rounded-lg gap-1.5" onClick={() => setShowNewFolder(!showNewFolder)}>
             <FolderPlus className="h-4 w-4" />
             <span className="hidden sm:inline">Nova Pasta</span>
           </Button>
 
-          {/* Upload */}
           <Button size="sm" className="rounded-lg gap-1.5 gradient-primary text-white shadow-premium" onClick={() => fileRef.current?.click()}>
             <Upload className="h-4 w-4" />
             <span className="hidden sm:inline">Upload</span>
@@ -425,9 +528,16 @@ const DocumentosTab = ({ obraId }: Props) => {
             {pastas?.map((p, i) => (
               <div
                 key={p.id}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 cursor-pointer transition-colors group"
+                className={cn(
+                  "flex items-center gap-3 px-4 py-3 hover:bg-muted/30 cursor-pointer transition-colors group",
+                  dragOverPastaId === p.id && "bg-primary/10 border-primary"
+                )}
                 onClick={() => navegarPasta(p.id, p.nome)}
+                {...folderDragProps(p.id)}
               >
+                <div className="cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-muted-foreground" onClick={e => e.stopPropagation()}>
+                  <GripVertical className="h-4 w-4" />
+                </div>
                 <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center shrink-0", folderColors[i % folderColors.length].bg)}>
                   <Folder className={cn("h-5 w-5", folderColors[i % folderColors.length].icon)} />
                 </div>
@@ -473,10 +583,17 @@ const DocumentosTab = ({ obraId }: Props) => {
           {pastas?.map((p, i) => (
             <Card
               key={p.id}
-              className="group overflow-hidden hover-lift shadow-premium rounded-xl border-border/50 cursor-pointer"
+              className={cn(
+                "group overflow-hidden hover-lift shadow-premium rounded-xl border-border/50 cursor-pointer relative",
+                dragOverPastaId === p.id && "ring-2 ring-primary"
+              )}
               onClick={() => navegarPasta(p.id, p.nome)}
+              {...folderDragProps(p.id)}
             >
               <div className={cn("h-28 flex items-center justify-center", folderColors[i % folderColors.length].bg)}>
+                <div className="absolute top-2 left-2 cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                  <GripVertical className="h-4 w-4" />
+                </div>
                 <Folder className={cn("h-12 w-12 transition-transform group-hover:scale-110", folderColors[i % folderColors.length].icon)} />
               </div>
               <div className="p-3">
@@ -510,10 +627,17 @@ const DocumentosTab = ({ obraId }: Props) => {
           {pastas?.map((p, i) => (
             <Card
               key={p.id}
-              className="group overflow-hidden hover-lift shadow-premium rounded-xl border-border/50 cursor-pointer"
+              className={cn(
+                "group overflow-hidden hover-lift shadow-premium rounded-xl border-border/50 cursor-pointer relative",
+                dragOverPastaId === p.id && "ring-2 ring-primary"
+              )}
               onClick={() => navegarPasta(p.id, p.nome)}
+              {...folderDragProps(p.id)}
             >
               <div className={cn("h-40 flex items-center justify-center", folderColors[i % folderColors.length].bg)}>
+                <div className="absolute top-2 left-2 cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                  <GripVertical className="h-4 w-4" />
+                </div>
                 <Folder className={cn("h-16 w-16 transition-transform group-hover:scale-110", folderColors[i % folderColors.length].icon)} />
               </div>
               <div className="p-4">
@@ -571,19 +695,22 @@ const DocCardItem = ({ doc, onOpen, onOpenTab, onRename, onDownload, onDelete, g
 }) => {
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const isImg = isImage(doc.tipo_arquivo);
+  const isVid = isVideo(doc.tipo_arquivo);
   const fic = fileIconColor(doc.tipo_arquivo);
 
   useEffect(() => {
-    if (isImg) {
+    if (isImg || isVid) {
       getSignedUrl(doc.url).then(({ data }) => { if (data) setSignedUrl(data.signedUrl); });
     }
-  }, [doc.url, isImg]);
+  }, [doc.url, isImg, isVid]);
 
   return (
     <Card className="group overflow-hidden hover-lift shadow-premium rounded-xl border-border/50 cursor-pointer relative" onClick={onOpen}>
       <div className="h-28 flex items-center justify-center bg-muted/30 overflow-hidden">
         {isImg && signedUrl ? (
           <img src={signedUrl} alt={doc.nome} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+        ) : isVid && signedUrl ? (
+          <VideoThumbnail url={signedUrl} className="w-full h-full" />
         ) : (
           <div className={cn("h-14 w-14 rounded-xl flex items-center justify-center", fic.bg)}>
             <fic.icon className={cn("h-7 w-7", fic.color)} />
@@ -611,19 +738,22 @@ const DocGridItem = ({ doc, onOpen, onOpenTab, onRename, onDownload, onDelete, g
 }) => {
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const isImg = isImage(doc.tipo_arquivo);
+  const isVid = isVideo(doc.tipo_arquivo);
   const fic = fileIconColor(doc.tipo_arquivo);
 
   useEffect(() => {
-    if (isImg) {
+    if (isImg || isVid) {
       getSignedUrl(doc.url).then(({ data }) => { if (data) setSignedUrl(data.signedUrl); });
     }
-  }, [doc.url, isImg]);
+  }, [doc.url, isImg, isVid]);
 
   return (
     <Card className="group overflow-hidden hover-lift shadow-premium rounded-xl border-border/50 cursor-pointer relative" onClick={onOpen}>
       <div className="h-40 flex items-center justify-center bg-muted/30 overflow-hidden">
         {isImg && signedUrl ? (
           <img src={signedUrl} alt={doc.nome} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+        ) : isVid && signedUrl ? (
+          <VideoThumbnail url={signedUrl} className="w-full h-full" />
         ) : (
           <div className={cn("h-20 w-20 rounded-2xl flex items-center justify-center", fic.bg)}>
             <fic.icon className={cn("h-10 w-10", fic.color)} />

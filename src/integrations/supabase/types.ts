@@ -593,6 +593,7 @@ export type Database = {
           id: string
           nome: string
           obra_id: string
+          ordem: number
           pasta_pai_id: string | null
         }
         Insert: {
@@ -601,6 +602,7 @@ export type Database = {
           id?: string
           nome: string
           obra_id: string
+          ordem?: number
           pasta_pai_id?: string | null
         }
         Update: {
@@ -609,6 +611,7 @@ export type Database = {
           id?: string
           nome?: string
           obra_id?: string
+          ordem?: number
           pasta_pai_id?: string | null
         }
         Relationships: [
