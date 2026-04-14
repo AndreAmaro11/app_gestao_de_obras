@@ -1,0 +1,1 @@
+ALTER TABLE public.pastas ADD COLUMN ordem integer NOT NULL DEFAULT 0;
