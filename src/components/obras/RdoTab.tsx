@@ -280,20 +280,20 @@ const RdoTab = ({ obraId }: Props) => {
                     {/* Media grid */}
                     {midias.length > 0 ? (
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-                        {midias.map((m: any) => (
+                        {midias.map((m: any, idx: number) => (
                           <div key={m.id} className="relative group rounded-lg overflow-hidden border aspect-video bg-muted">
                             {m.tipo === "foto" ? (
                               <img
                                 src={m.url}
                                 alt={m.descricao || ""}
-                                className="w-full h-full object-cover cursor-pointer"
+                                className="w-full h-full object-cover cursor-zoom-in"
                                 loading="lazy"
-                                onClick={() => { setPreviewUrl(m.url); setPreviewType("foto"); }}
+                                onClick={() => openLightbox(midias, idx)}
                               />
                             ) : (
                               <div
                                 className="w-full h-full flex items-center justify-center bg-black/10 cursor-pointer"
-                                onClick={() => { setPreviewUrl(m.url); setPreviewType("video"); }}
+                                onClick={() => openLightbox(midias, idx)}
                               >
                                 <Play className="h-8 w-8 text-muted-foreground" />
                               </div>
@@ -302,7 +302,12 @@ const RdoTab = ({ obraId }: Props) => {
                               <Button
                                 variant="ghost" size="icon"
                                 className="h-7 w-7 text-white hover:text-destructive"
-                                onClick={(e) => { e.stopPropagation(); deleteMidia.mutate({ id: m.id, obraId }); }}
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (await confirm({ title: "Excluir mídia?", description: "Esta foto/vídeo será removida permanentemente do relatório." })) {
+                                    deleteMidia.mutate({ id: m.id, obraId });
+                                  }
+                                }}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -397,16 +402,13 @@ const RdoTab = ({ obraId }: Props) => {
         </DialogContent>
       </Dialog>
 
-      {/* Preview dialog */}
-      <Dialog open={!!previewUrl} onOpenChange={() => setPreviewUrl(null)}>
-        <DialogContent className="max-w-4xl p-2">
-          {previewType === "foto" ? (
-            <img src={previewUrl!} alt="" className="w-full h-auto max-h-[80vh] object-contain rounded" />
-          ) : (
-            <video src={previewUrl!} controls className="w-full max-h-[80vh] rounded" />
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Lightbox */}
+      <MediaLightbox
+        items={lightboxItems}
+        startIndex={lightboxIndex}
+        open={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+      />
     </div>
   );
 };
