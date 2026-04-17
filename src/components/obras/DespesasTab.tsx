@@ -573,7 +573,7 @@ const AnexosDialog = ({ despesaId, open, onOpenChange }: { despesaId: string | n
   const deleteAnexo = useDeleteDespesaAnexo();
   const downloadAnexo = useDownloadDespesaAnexo();
   const { toast } = useToast();
-  
+  const confirm = useConfirm();
 
   const handleUpload = async (files: FileList) => {
     if (!despesaId) return;
