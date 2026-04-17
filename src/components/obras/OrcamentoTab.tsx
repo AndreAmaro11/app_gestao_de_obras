@@ -52,6 +52,7 @@ const OrcamentoTab = ({ obraId }: Props) => {
   const createOrcamento = useCreateOrcamento();
   const deleteOrcamento = useDeleteOrcamento();
   const { toast } = useToast();
+  const confirm = useConfirm();
 
   const [view, setView] = useState<View>("list");
   const [selectedOrcamentoId, setSelectedOrcamentoId] = useState<string | null>(null);
@@ -72,11 +73,10 @@ const OrcamentoTab = ({ obraId }: Props) => {
   const handleDeleteOrc = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const orc = orcamentos?.find((o: any) => o.id === id);
-    const confirm = (window as any).__lovableConfirm as ((opts: any) => Promise<boolean>) | undefined;
-    if (confirm) {
-      const ok = await confirm({ title: "Excluir orçamento?", description: `O orçamento "${orc?.nome || ""}" e seus itens/cotações serão removidos.` });
-      if (!ok) return;
-    }
+    if (!await confirm({
+      title: "Excluir orçamento?",
+      description: `O orçamento "${orc?.nome || ""}" e todos os seus itens e cotações serão removidos permanentemente.`,
+    })) return;
     try {
       await deleteOrcamento.mutateAsync({ id, obra_id: obraId });
       toast({ title: "Orçamento excluído" });
