@@ -592,6 +592,10 @@ const AnexosDialog = ({ despesaId, open, onOpenChange }: { despesaId: string | n
   };
 
   const handleDelete = async (anexo: any) => {
+    if (!await confirm({
+      title: "Excluir anexo?",
+      description: `O arquivo "${anexo.nome}" será removido permanentemente.`,
+    })) return;
     try {
       await deleteAnexo.mutateAsync({ id: anexo.id, despesaId: anexo.despesa_id, url: anexo.url });
       toast({ title: "Anexo removido" });
