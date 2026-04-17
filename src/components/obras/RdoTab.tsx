@@ -82,9 +82,24 @@ const RdoTab = ({ obraId }: Props) => {
   const toggleExpand = (id: string) => {
     setExpandedRdos(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
+  };
+
+  const openLightbox = (midias: any[], index: number) => {
+    setLightboxItems(midias.map(m => ({ id: m.id, url: m.url, tipo: m.tipo, descricao: m.descricao })));
+    setLightboxIndex(index);
+    setLightboxOpen(true);
+  };
+
+  const handleDeleteRdo = async (id: string) => {
+    if (await confirm({
+      title: "Excluir relatório?",
+      description: "O RDO e todas as suas mídias serão removidos permanentemente.",
+    })) {
+      deleteRdo.mutate({ id, obra_id: obraId });
+    }
   };
 
   // Get week numbers for filter
@@ -264,7 +279,7 @@ const RdoTab = ({ obraId }: Props) => {
                         <Upload className="h-3.5 w-3.5" />
                       </Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"
-                        onClick={() => deleteRdo.mutate({ id: rdo.id, obra_id: obraId })}>
+                        onClick={() => handleDeleteRdo(rdo.id)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
