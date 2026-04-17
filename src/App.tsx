@@ -9,6 +9,7 @@ import ObraDetailPage from "./pages/ObraDetailPage";
 import AuthPage from "./pages/AuthPage";
 import FornecedoresPage from "./pages/FornecedoresPage";
 import NotFound from "./pages/NotFound";
+import { ConfirmProvider } from "@/components/ConfirmDialog";
 
 const queryClient = new QueryClient();
 
@@ -22,17 +23,19 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/auth" element={<AuthPage />} />
-          <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-          <Route path="/obra/:id" element={<ProtectedRoute><ObraDetailPage /></ProtectedRoute>} />
-          <Route path="/fornecedores" element={<ProtectedRoute><FornecedoresPage /></ProtectedRoute>} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <ConfirmProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/auth" element={<AuthPage />} />
+            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+            <Route path="/obra/:id" element={<ProtectedRoute><ObraDetailPage /></ProtectedRoute>} />
+            <Route path="/fornecedores" element={<ProtectedRoute><FornecedoresPage /></ProtectedRoute>} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </ConfirmProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
