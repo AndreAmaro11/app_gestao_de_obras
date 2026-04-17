@@ -15,6 +15,8 @@ import { useRdos, useCreateRdo, useUpdateRdo, useDeleteRdo, useUploadRdoMidia, u
 import { useEtapas } from "@/hooks/useEtapas";
 import { useSubetapas } from "@/hooks/useSubetapas";
 import { useToast } from "@/hooks/use-toast";
+import { useConfirm } from "@/components/ConfirmDialog";
+import MediaLightbox, { LightboxItem } from "@/components/MediaLightbox";
 
 const climaIcons: Record<string, any> = {
   bom: Sun,
@@ -60,6 +62,7 @@ const RdoTab = ({ obraId }: Props) => {
   const uploadMidia = useUploadRdoMidia();
   const deleteMidia = useDeleteRdoMidia();
   const { toast } = useToast();
+  const confirm = useConfirm();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -72,8 +75,9 @@ const RdoTab = ({ obraId }: Props) => {
   const [filterEtapa, setFilterEtapa] = useState("__all__");
   const [filterSemana, setFilterSemana] = useState("__all__");
   const [expandedRdos, setExpandedRdos] = useState<Set<string>>(new Set());
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [previewType, setPreviewType] = useState<string>("foto");
+  const [lightboxItems, setLightboxItems] = useState<LightboxItem[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const toggleExpand = (id: string) => {
     setExpandedRdos(prev => {
