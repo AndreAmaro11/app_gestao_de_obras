@@ -23,6 +23,7 @@ import { useDespesas } from "@/hooks/useDespesas";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 interface Props { obraId: string; }
 type View = "list" | "items" | "cotacoes";
@@ -51,6 +52,7 @@ const OrcamentoTab = ({ obraId }: Props) => {
   const createOrcamento = useCreateOrcamento();
   const deleteOrcamento = useDeleteOrcamento();
   const { toast } = useToast();
+  const confirm = useConfirm();
 
   const [view, setView] = useState<View>("list");
   const [selectedOrcamentoId, setSelectedOrcamentoId] = useState<string | null>(null);
@@ -70,6 +72,11 @@ const OrcamentoTab = ({ obraId }: Props) => {
 
   const handleDeleteOrc = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    const orc = orcamentos?.find((o: any) => o.id === id);
+    if (!await confirm({
+      title: "Excluir orçamento?",
+      description: `O orçamento "${orc?.nome || ""}" e todos os seus itens e cotações serão removidos permanentemente.`,
+    })) return;
     try {
       await deleteOrcamento.mutateAsync({ id, obra_id: obraId });
       toast({ title: "Orçamento excluído" });

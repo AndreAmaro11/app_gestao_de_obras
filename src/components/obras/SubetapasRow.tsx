@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 interface Props {
   etapaId: string;
@@ -28,6 +29,7 @@ const SubetapasRow = ({ etapaId, obraId, onSubetapaChange }: Props) => {
   const deleteSub = useDeleteSubetapa();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [showAdd, setShowAdd] = useState(false);
   const [editingSub, setEditingSub] = useState<any>(null);
   const [nome, setNome] = useState("");
@@ -203,7 +205,15 @@ const SubetapasRow = ({ etapaId, obraId, onSubetapaChange }: Props) => {
                 <ArrowRightLeft className="h-3.5 w-3.5" />
               </Button>
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(s)}><Pencil className="h-3.5 w-3.5" /></Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => { deleteSub.mutate({ id: s.id, etapa_id: etapaId }); onSubetapaChange?.(); }}>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={async () => {
+                if (await confirm({
+                  title: "Excluir subetapa?",
+                  description: `A subetapa "${s.nome}" será removida.`,
+                })) {
+                  deleteSub.mutate({ id: s.id, etapa_id: etapaId });
+                  onSubetapaChange?.();
+                }
+              }}>
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>

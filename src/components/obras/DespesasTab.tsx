@@ -16,6 +16,7 @@ import { useFornecedores, useCreateFornecedor } from "@/hooks/useFornecedores";
 import { useToast } from "@/hooks/use-toast";
 import { DataToolbar, SortableHeader, useSort, useSearch } from "@/components/DataToolbar";
 import { Textarea } from "@/components/ui/textarea";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 
 const categoriaLabel: Record<string, string> = {
@@ -53,6 +54,16 @@ const DespesasTab = ({ obraId }: Props) => {
   const deleteDespesa = useDeleteDespesa();
   const createFornecedor = useCreateFornecedor();
   const { toast } = useToast();
+  const confirm = useConfirm();
+
+  const handleDeleteDespesa = async (d: any) => {
+    if (await confirm({
+      title: "Excluir despesa?",
+      description: `A despesa "${d.descricao}" (R$ ${fmt(d.valor_real || d.valor_previsto)}) e suas parcelas/anexos serão removidos. Esta ação afeta o financeiro.`,
+    })) {
+      deleteDespesa.mutate({ id: d.id, obra_id: obraId });
+    }
+  };
 
   const [filtroEtapa, setFiltroEtapa] = useState("todos");
   const [filtroCategoria, setFiltroCategoria] = useState("todos");
@@ -416,7 +427,7 @@ const DespesasTab = ({ obraId }: Props) => {
                             onToggleExpand={() => toggleExpand(d.id)}
                             onTogglePago={handleTogglePago}
                             onEdit={openEdit}
-                            onDelete={() => deleteDespesa.mutate({ id: d.id, obra_id: obraId })}
+                            onDelete={() => handleDeleteDespesa(d)}
                             onAnexos={(id) => setAnexosDespesaId(id)}
                           />
                         );
@@ -451,7 +462,7 @@ const DespesasTab = ({ obraId }: Props) => {
                       onToggleExpand={() => toggleExpand(d.id)}
                       onTogglePago={handleTogglePago}
                       onEdit={openEdit}
-                      onDelete={() => deleteDespesa.mutate({ id: d.id, obra_id: obraId })}
+                      onDelete={() => handleDeleteDespesa(d)}
                       onAnexos={(id) => setAnexosDespesaId(id)}
                     />
                   );
@@ -562,7 +573,7 @@ const AnexosDialog = ({ despesaId, open, onOpenChange }: { despesaId: string | n
   const deleteAnexo = useDeleteDespesaAnexo();
   const downloadAnexo = useDownloadDespesaAnexo();
   const { toast } = useToast();
-  
+  const confirm = useConfirm();
 
   const handleUpload = async (files: FileList) => {
     if (!despesaId) return;
@@ -581,6 +592,10 @@ const AnexosDialog = ({ despesaId, open, onOpenChange }: { despesaId: string | n
   };
 
   const handleDelete = async (anexo: any) => {
+    if (!await confirm({
+      title: "Excluir anexo?",
+      description: `O arquivo "${anexo.nome}" será removido permanentemente.`,
+    })) return;
     try {
       await deleteAnexo.mutateAsync({ id: anexo.id, despesaId: anexo.despesa_id, url: anexo.url });
       toast({ title: "Anexo removido" });

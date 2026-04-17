@@ -82,7 +82,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
   // Filter helper
   const matchesDateFilter = (dateStr: string | null) => {
     if (!dateStr) return filtroAno === "todos";
-    const date = new Date(dateStr);
+    const date = new Date(dateStr + "T12:00:00");
     const year = date.getFullYear();
     const month = date.getMonth() + 1;
 
@@ -143,7 +143,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
   // Matrix data
   const months = new Set<string>();
   fluxoCaixa.forEach((d: any) => {
-    const date = new Date(d.data_vencimento);
+    const date = new Date(d.data_vencimento + "T12:00:00");
     months.add(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`);
   });
   const sortedMonths = Array.from(months).sort();
@@ -520,7 +520,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
             // Aggregate saídas by month (from fluxoCaixa - despesas with vencimento)
             const saidasPorMes: Record<string, number> = {};
             allFluxoItems.forEach((d: any) => {
-              const date = new Date(d.data_vencimento);
+              const date = new Date(d.data_vencimento + "T12:00:00");
               const mesKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
               saidasPorMes[mesKey] = (saidasPorMes[mesKey] || 0) + (d.valor_real || d.valor_previsto);
             });

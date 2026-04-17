@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import SubetapasRow from "./SubetapasRow";
 import GanttChart from "./GanttChart";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 interface Props { obraId: string; }
 
@@ -28,6 +29,7 @@ const CronogramaTab = ({ obraId }: Props) => {
   const deleteEtapa = useDeleteEtapa();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [expandedEtapas, setExpandedEtapas] = useState<Set<string>>(new Set());
   const [showDialog, setShowDialog] = useState(false);
   const [editingEtapa, setEditingEtapa] = useState<any>(null);
@@ -221,7 +223,14 @@ const CronogramaTab = ({ obraId }: Props) => {
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1" onClick={e => e.stopPropagation()}>
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(etapa)}><Pencil className="h-3.5 w-3.5" /></Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteEtapa.mutate({ id: etapa.id, obra_id: obraId })}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={async () => {
+                              if (await confirm({
+                                title: "Excluir etapa?",
+                                description: `A etapa "${etapa.nome}" e todas as suas subetapas, checklists e vínculos serão removidos. Esta ação não pode ser desfeita.`,
+                              })) {
+                                deleteEtapa.mutate({ id: etapa.id, obra_id: obraId });
+                              }
+                            }}>
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>

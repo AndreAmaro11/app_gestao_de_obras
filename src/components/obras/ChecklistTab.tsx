@@ -12,6 +12,7 @@ import { useChecklistByObra, useCreateChecklistItem, useToggleChecklist, useDele
 import { useEtapas } from "@/hooks/useEtapas";
 import { useSubetapas } from "@/hooks/useSubetapas";
 import { useToast } from "@/hooks/use-toast";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 interface Props { obraId: string; }
 
@@ -41,6 +42,16 @@ const ChecklistTab = ({ obraId }: Props) => {
   const deleteItem = useDeleteChecklistItem();
   const updateItem = useUpdateChecklistItem();
   const { toast } = useToast();
+  const confirm = useConfirm();
+
+  const handleDeleteItem = async (id: string, label?: string) => {
+    if (await confirm({
+      title: "Excluir item do checklist?",
+      description: label ? `O item "${label}" será removido permanentemente.` : "O item será removido permanentemente.",
+    })) {
+      deleteItem.mutate(id);
+    }
+  };
 
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<any>(null);
@@ -202,7 +213,7 @@ const ChecklistTab = ({ obraId }: Props) => {
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(c)}><Pencil className="h-3.5 w-3.5" /></Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteItem.mutate(c.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteItem(c.id, c.item)}><Trash2 className="h-3.5 w-3.5" /></Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -231,7 +242,7 @@ const ChecklistTab = ({ obraId }: Props) => {
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(c)}><Pencil className="h-3.5 w-3.5" /></Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteItem.mutate(c.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteItem(c.id, c.item)}><Trash2 className="h-3.5 w-3.5" /></Button>
                     </div>
                   </TableCell>
                 </TableRow>
