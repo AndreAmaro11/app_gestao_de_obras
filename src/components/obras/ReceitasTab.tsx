@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useReceitas, useCreateReceita, useUpdateReceita, useDeleteReceita, type Receita } from "@/hooks/useReceitas";
 import { useToast } from "@/hooks/use-toast";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const fmt = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
 
@@ -29,6 +30,7 @@ const ReceitasTab = ({ obraId }: Props) => {
   const updateReceita = useUpdateReceita();
   const deleteReceita = useDeleteReceita();
   const { toast } = useToast();
+  const confirm = useConfirm();
 
   const [showDialog, setShowDialog] = useState(false);
   const [editing, setEditing] = useState<Receita | null>(null);
@@ -84,6 +86,11 @@ const ReceitasTab = ({ obraId }: Props) => {
   };
 
   const handleDelete = async (id: string) => {
+    const r = (receitas || []).find((x: any) => x.id === id);
+    if (!await confirm({
+      title: "Excluir receita?",
+      description: `A receita "${r?.descricao || ""}" será removida do fluxo de caixa.`,
+    })) return;
     try {
       await deleteReceita.mutateAsync({ id, obra_id: obraId });
       toast({ title: "Receita excluída" });

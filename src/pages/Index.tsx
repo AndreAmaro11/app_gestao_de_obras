@@ -7,11 +7,13 @@ import { useToast } from "@/hooks/use-toast";
 import { DataToolbar, useSearch } from "@/components/DataToolbar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Building2 } from "lucide-react";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const Index = () => {
   const { data: obras, isLoading } = useObras();
   const deleteObra = useDeleteObra();
   const { toast } = useToast();
+  const confirm = useConfirm();
   const [filtroPadrao, setFiltroPadrao] = useState("todos");
 
   const { search, setSearch, filtered: searched } = useSearch(obras, ["nome"]);
@@ -22,6 +24,11 @@ const Index = () => {
   });
 
   const handleDelete = async (id: string) => {
+    const obra = obras?.find((o: any) => o.id === id);
+    if (!await confirm({
+      title: "Excluir obra?",
+      description: `A obra "${obra?.nome || ""}" e todos os seus dados (etapas, despesas, documentos, etc.) serão excluídos. Esta ação não pode ser desfeita.`,
+    })) return;
     try {
       await deleteObra.mutateAsync(id);
       toast({ title: "Obra excluída" });

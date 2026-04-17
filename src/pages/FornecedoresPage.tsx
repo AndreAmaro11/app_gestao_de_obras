@@ -16,6 +16,7 @@ import { useEtapas } from "@/hooks/useEtapas";
 import { useSubetapas } from "@/hooks/useSubetapas";
 import { useToast } from "@/hooks/use-toast";
 import { DataToolbar, SortableHeader, useSort, useSearch } from "@/components/DataToolbar";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const tipoLabel: Record<string, string> = { material: "Material", mao_de_obra: "Mão de Obra", misto: "Misto" };
 
@@ -52,6 +53,7 @@ const FornecedoresPage = () => {
   const updateFornecedor = useUpdateFornecedor();
   const deleteFornecedor = useDeleteFornecedor();
   const { toast } = useToast();
+  const confirm = useConfirm();
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
@@ -116,6 +118,11 @@ const FornecedoresPage = () => {
   };
 
   const handleDelete = async (id: string) => {
+    const f = fornecedores?.find((x: any) => x.id === id);
+    if (!await confirm({
+      title: "Excluir fornecedor?",
+      description: `"${f?.nome || ""}" será removido. Cotações e despesas vinculadas perderão a referência.`,
+    })) return;
     try { await deleteFornecedor.mutateAsync(id); toast({ title: "Fornecedor excluído" }); }
     catch (error: any) { toast({ title: "Erro", description: error.message, variant: "destructive" }); }
   };
