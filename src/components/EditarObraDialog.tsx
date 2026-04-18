@@ -7,7 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useUpdateObra } from "@/hooks/useObras";
 import { useObraImagens, useUploadObraImagem, useSetCapa, useDeleteObraImagem } from "@/hooks/useObraImagens";
 import { useToast } from "@/hooks/use-toast";
-import { ImagePlus, Star, Trash2 } from "lucide-react";
+import { useConfirm } from "@/components/ConfirmDialog";
+import MediaLightbox, { LightboxItem } from "@/components/MediaLightbox";
+import { ImagePlus, Star, Trash2, Eye } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 interface Props {
