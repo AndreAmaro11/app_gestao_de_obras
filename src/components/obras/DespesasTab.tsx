@@ -630,7 +630,6 @@ const AnexosDialog = ({ despesaId, open, onOpenChange }: { despesaId: string | n
     try {
       const url = signedUrls[anexo.id] || await getDespesaAnexoSignedUrl(anexo.url, 3600);
       if (isImage(anexo.tipo_arquivo)) {
-        // Open image lightbox over all image attachments
         const imgs = (anexos || []).filter((x: any) => isImage(x.tipo_arquivo));
         const items = await Promise.all(imgs.map(async (x: any) => ({
           id: x.id,
@@ -639,10 +638,9 @@ const AnexosDialog = ({ despesaId, open, onOpenChange }: { despesaId: string | n
           descricao: x.nome,
         })));
         setLightboxItems(items);
-        setLightboxIndex(imgs.findIndex((x: any) => x.id === anexo.id));
+        setLightboxIndex(Math.max(0, imgs.findIndex((x: any) => x.id === anexo.id)));
         setLightboxOpen(true);
       } else {
-        // Open in new tab (PDFs, docs, etc.)
         window.open(url, "_blank", "noopener,noreferrer");
       }
     } catch (err: any) {

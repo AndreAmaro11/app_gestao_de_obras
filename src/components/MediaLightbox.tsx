@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, X, Download, ExternalLink, Maximize2, Play, Pause, Timer } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -105,7 +106,10 @@ const MediaLightbox = ({ items, startIndex, open, onClose }: Props) => {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-[98vw] w-[98vw] h-[95vh] p-0 gap-0 bg-black/95 border-0 [&>button]:hidden">
+      <DialogContent aria-describedby={undefined} className="max-w-[98vw] w-[98vw] h-[95vh] p-0 gap-0 bg-black/95 border-0 z-[100] [&>button]:hidden">
+        <VisuallyHidden>
+          <DialogTitle>Visualizador de mídia</DialogTitle>
+        </VisuallyHidden>
         {/* Top bar */}
         <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/80 to-transparent">
           <div className="text-white text-sm flex items-center gap-3">
