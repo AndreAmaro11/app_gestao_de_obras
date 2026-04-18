@@ -31,7 +31,29 @@ const EditarObraDialog = ({ obra, open, onOpenChange }: Props) => {
   const setCapa = useSetCapa();
   const deleteImagem = useDeleteObraImagem();
   const { toast } = useToast();
+  const confirm = useConfirm();
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
+  const lightboxItems: LightboxItem[] = (imagens || []).map((img) => ({
+    id: img.id,
+    url: img.url,
+    tipo: "foto" as const,
+  }));
+
+  const openLightbox = (i: number) => {
+    setLightboxIndex(i);
+    setLightboxOpen(true);
+  };
+
+  const handleDeleteImagem = async (imagemId: string) => {
+    if (await confirm({
+      title: "Excluir imagem?",
+      description: "Esta foto será removida permanentemente da galeria.",
+    })) {
+      deleteImagem.mutate({ imagemId, obraId: obra.id });
+    }
+  };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
