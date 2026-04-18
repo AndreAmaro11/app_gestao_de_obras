@@ -231,6 +231,7 @@ const FornecedoresPage = () => {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="mb-4">
