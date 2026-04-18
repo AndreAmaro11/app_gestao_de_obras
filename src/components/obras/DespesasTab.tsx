@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { DataToolbar, SortableHeader, useSort, useSearch } from "@/components/DataToolbar";
 import { Textarea } from "@/components/ui/textarea";
 import { useConfirm } from "@/components/ConfirmDialog";
+import MediaLightbox, { LightboxItem } from "@/components/MediaLightbox";
 
 
 const categoriaLabel: Record<string, string> = {
