@@ -113,6 +113,33 @@ const MediaLightbox = ({ items, startIndex, open, onClose }: Props) => {
             {current.descricao && <span className="text-white/70 truncate max-w-md">{current.descricao}</span>}
           </div>
           <div className="flex items-center gap-1">
+            {items.length > 1 && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("text-white hover:bg-white/20", slideshow && "bg-white/20")}
+                  onClick={() => setSlideshow(s => !s)}
+                  title={slideshow ? "Pausar apresentação (Espaço)" : "Iniciar apresentação (Espaço)"}
+                >
+                  {slideshow ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                </Button>
+                <Select value={String(slideInterval)} onValueChange={(v) => setSlideInterval(Number(v))}>
+                  <SelectTrigger className="h-8 w-[88px] bg-transparent border-white/30 text-white text-xs hover:bg-white/10">
+                    <Timer className="h-3.5 w-3.5 mr-1" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1500">1,5s</SelectItem>
+                    <SelectItem value="3000">3s</SelectItem>
+                    <SelectItem value="5000">5s</SelectItem>
+                    <SelectItem value="8000">8s</SelectItem>
+                    <SelectItem value="12000">12s</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="w-px h-5 bg-white/20 mx-1" />
+              </>
+            )}
             {current.tipo === "foto" && (
               <>
                 <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={() => setZoom(z => Math.max(z - 0.25, 0.5))} title="Diminuir zoom">
