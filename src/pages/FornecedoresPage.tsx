@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Pencil, Trash2, X } from "lucide-react";
+import { Plus, Pencil, Trash2, X, FileSpreadsheet } from "lucide-react";
+import { exportToExcel } from "@/lib/excelExport";
 import { useFornecedores, useCreateFornecedor, useUpdateFornecedor, useDeleteFornecedor } from "@/hooks/useFornecedores";
 import { useObras } from "@/hooks/useObras";
 import { useEtapas } from "@/hooks/useEtapas";
@@ -131,10 +132,36 @@ const FornecedoresPage = () => {
     <AppLayout>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <h1 className="text-xl sm:text-2xl font-bold text-foreground">Fornecedores</h1>
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
-          <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-1" />Novo Fornecedor</Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => exportToExcel(
+              (fornecedores || []) as any[],
+              [
+                { header: "Razão Social", accessor: "nome", width: 30 },
+                { header: "Nome Fantasia", accessor: (f: any) => f.nome_fantasia || "", width: 25 },
+                { header: "CNPJ", accessor: (f: any) => f.cnpj || "", width: 18 },
+                { header: "Tipo", accessor: (f: any) => tipoLabel[f.tipo] || f.tipo, width: 14 },
+                { header: "Contato", accessor: (f: any) => f.contato || "", width: 22 },
+                { header: "Telefone", accessor: (f: any) => f.telefone || "", width: 16 },
+                { header: "Email", accessor: (f: any) => f.email || "", width: 25 },
+                { header: "Endereço", accessor: (f: any) => f.endereco || "", width: 35 },
+                { header: "Rede Social", accessor: (f: any) => f.rede_social || "", width: 20 },
+                { header: "Indicação", accessor: (f: any) => f.indicacao ? "Sim" : "Não", width: 11 },
+                { header: "Tags", accessor: (f: any) => (f.tags || []).join(", "), width: 25 },
+                { header: "Observação", accessor: (f: any) => f.observacao || "", width: 30 },
+              ],
+              "fornecedores",
+              "Fornecedores"
+            )}
+            disabled={!fornecedores?.length}
+          >
+            <FileSpreadsheet className="h-4 w-4 mr-1" />Excel
+          </Button>
+          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
+            <DialogTrigger asChild>
+              <Button><Plus className="h-4 w-4 mr-1" />Novo Fornecedor</Button>
+            </DialogTrigger>
           <DialogContent className="max-w-lg">
             <DialogHeader><DialogTitle>{editing ? "Editar Fornecedor" : "Novo Fornecedor"}</DialogTitle></DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">

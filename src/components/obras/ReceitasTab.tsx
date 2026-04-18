@@ -8,10 +8,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, FileSpreadsheet } from "lucide-react";
 import { useReceitas, useCreateReceita, useUpdateReceita, useDeleteReceita, type Receita } from "@/hooks/useReceitas";
 import { useToast } from "@/hooks/use-toast";
 import { useConfirm } from "@/components/ConfirmDialog";
+import { exportToExcel, formatDateForExcel } from "@/lib/excelExport";
 
 const fmt = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
 
@@ -108,9 +109,33 @@ const ReceitasTab = ({ obraId }: Props) => {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
         <h2 className="text-lg font-semibold">Receitas</h2>
-        <Button size="sm" className="self-end sm:self-auto" onClick={() => { resetForm(); setShowDialog(true); }}>
-          <Plus className="h-4 w-4 mr-1" />Nova Receita
-        </Button>
+        <div className="flex items-center gap-2 self-end sm:self-auto">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => exportToExcel(
+              (receitas || []) as any[],
+              [
+                { header: "Descrição", accessor: "descricao", width: 35 },
+                { header: "Tipo", accessor: (r: any) => tipoLabel[r.tipo] || r.tipo, width: 18 },
+                { header: "Valor", accessor: (r: any) => Number(r.valor || 0), width: 14, numFmt: "R$ #,##0.00" },
+                { header: "Data Início", accessor: (r: any) => formatDateForExcel(r.data_inicio), width: 12 },
+                { header: "Recorrente", accessor: (r: any) => r.recorrente ? "Sim" : "Não", width: 11 },
+                { header: "Meses", accessor: (r: any) => r.recorrente ? r.meses_repeticao : 1, width: 8 },
+                { header: "Total Projetado", accessor: (r: any) => Number(r.valor || 0) * (r.recorrente ? r.meses_repeticao : 1), width: 16, numFmt: "R$ #,##0.00" },
+                { header: "Observação", accessor: (r: any) => r.observacao || "", width: 30 },
+              ],
+              "receitas",
+              "Receitas"
+            )}
+            disabled={!receitas?.length}
+          >
+            <FileSpreadsheet className="h-4 w-4 mr-1" />Excel
+          </Button>
+          <Button size="sm" onClick={() => { resetForm(); setShowDialog(true); }}>
+            <Plus className="h-4 w-4 mr-1" />Nova Receita
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">

@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import StatusBadge from "@/components/StatusBadge";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, FileSpreadsheet } from "lucide-react";
+import { exportToExcel, formatDateForExcel } from "@/lib/excelExport";
 import { useEtapas, useCreateEtapa, useUpdateEtapa, useDeleteEtapa } from "@/hooks/useEtapas";
 import { useSubetapas, useUpdateSubetapa } from "@/hooks/useSubetapas";
 import { supabase } from "@/integrations/supabase/client";
@@ -135,7 +136,35 @@ const CronogramaTab = ({ obraId }: Props) => {
             </button>
           </div>
         </div>
-        <Button size="sm" className="self-end sm:self-auto" onClick={() => { resetForm(); setShowDialog(true); }}><Plus className="h-4 w-4 mr-1" />Nova Etapa</Button>
+        <div className="flex items-center gap-2 self-end sm:self-auto">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              const statusLabel: Record<string, string> = { nao_iniciada: "Não Iniciada", em_andamento: "Em Andamento", concluida: "Concluída" };
+              exportToExcel(
+                (etapas || []) as any[],
+                [
+                  { header: "Ordem", accessor: "ordem", width: 8 },
+                  { header: "Nome", accessor: "nome", width: 30 },
+                  { header: "Status", accessor: (e: any) => statusLabel[e.status] || e.status, width: 16 },
+                  { header: "% Concluído", accessor: "percentual_concluido", width: 12, numFmt: "0\"%\"" },
+                  { header: "Início Previsto", accessor: (e: any) => formatDateForExcel(e.inicio_previsto), width: 14 },
+                  { header: "Fim Previsto", accessor: (e: any) => formatDateForExcel(e.fim_previsto), width: 14 },
+                  { header: "Início Real", accessor: (e: any) => formatDateForExcel(e.inicio_real), width: 14 },
+                  { header: "Fim Real", accessor: (e: any) => formatDateForExcel(e.fim_real), width: 14 },
+                  { header: "Dependência", accessor: (e: any) => etapas?.find((x: any) => x.id === e.dependencia)?.nome || "", width: 25 },
+                ],
+                "cronograma",
+                "Cronograma"
+              );
+            }}
+            disabled={!etapas?.length}
+          >
+            <FileSpreadsheet className="h-4 w-4 mr-1" />Excel
+          </Button>
+          <Button size="sm" onClick={() => { resetForm(); setShowDialog(true); }}><Plus className="h-4 w-4 mr-1" />Nova Etapa</Button>
+        </div>
       </div>
 
       <Dialog open={showDialog} onOpenChange={(v) => { setShowDialog(v); if (!v) resetForm(); }}>

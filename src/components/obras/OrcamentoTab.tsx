@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import StatusBadge from "@/components/StatusBadge";
-import { Plus, ArrowLeft, Check, ChevronRight, ChevronDown, Pencil, Trash2, Upload, CheckCircle2, Circle, RefreshCw, Layers } from "lucide-react";
+import { Plus, ArrowLeft, Check, ChevronRight, ChevronDown, Pencil, Trash2, Upload, CheckCircle2, Circle, RefreshCw, Layers, FileSpreadsheet } from "lucide-react";
+import { exportToExcel } from "@/lib/excelExport";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SortableHeader, useSort } from "@/components/DataToolbar";
 import {
@@ -95,7 +96,29 @@ const OrcamentoTab = ({ obraId }: Props) => {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-semibold">Orçamentos</h2>
-        <Button size="sm" onClick={() => setShowNewOrc(true)}><Plus className="h-4 w-4 mr-1" />Novo Orçamento</Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              const statusLabel: Record<string, string> = { rascunho: "Rascunho", em_cotacao: "Em Cotação", aprovado: "Aprovado", fechado: "Fechado" };
+              exportToExcel(
+                (orcamentos || []) as any[],
+                [
+                  { header: "Nome", accessor: "nome", width: 30 },
+                  { header: "Status", accessor: (o: any) => statusLabel[o.status] || o.status, width: 16 },
+                  { header: "Criado em", accessor: (o: any) => o.created_at ? new Date(o.created_at).toLocaleDateString("pt-BR") : "", width: 14 },
+                ],
+                "orcamentos",
+                "Orçamentos"
+              );
+            }}
+            disabled={!orcamentos?.length}
+          >
+            <FileSpreadsheet className="h-4 w-4 mr-1" />Excel
+          </Button>
+          <Button size="sm" onClick={() => setShowNewOrc(true)}><Plus className="h-4 w-4 mr-1" />Novo Orçamento</Button>
+        </div>
       </div>
       <Dialog open={showNewOrc} onOpenChange={setShowNewOrc}>
         <DialogContent>
@@ -517,6 +540,29 @@ const ItensView = ({ orcamentoId, obraId, orcNome, orcStatus, onBack, onSelectIt
           >
             <Layers className="h-4 w-4 mr-1" />
             {agrupado ? "Desagrupar" : "Agrupar"}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => exportToExcel(
+              (sorted || []) as any[],
+              [
+                { header: "Descrição", accessor: "descricao", width: 35 },
+                { header: "Etapa", accessor: (i: any) => i.etapas?.nome || "", width: 22 },
+                { header: "Subetapa", accessor: (i: any) => i.subetapas?.nome || "", width: 22 },
+                { header: "Unidade", accessor: "unidade", width: 10 },
+                { header: "Quantidade", accessor: (i: any) => Number(i.quantidade || 0), width: 12, numFmt: "#,##0.00" },
+                { header: "Valor Unit. Estimado", accessor: (i: any) => Number(i.valor_estimado_unitario || 0), width: 18, numFmt: "R$ #,##0.00" },
+                { header: "Total Estimado", accessor: (i: any) => Number(i._totalEst || 0), width: 16, numFmt: "R$ #,##0.00" },
+                { header: "Valor Selecionado", accessor: (i: any) => Number(i._valorSelecionado || 0), width: 18, numFmt: "R$ #,##0.00" },
+                { header: "Nº Cotações", accessor: (i: any) => i._numCotacoes || 0, width: 12 },
+              ],
+              `orcamento_${orcNome.replace(/\s+/g, "_")}`,
+              "Itens"
+            )}
+            disabled={!sorted?.length}
+          >
+            <FileSpreadsheet className="h-4 w-4 mr-1" />Excel
           </Button>
           <Button size="sm" variant="outline" onClick={() => { resetForm(); setShowAdd(true); }}><Plus className="h-4 w-4 mr-1" />Novo Item</Button>
         </div>
