@@ -25,9 +25,11 @@ const MediaLightbox = ({ items, startIndex, open, onClose }: Props) => {
   const [rotation, setRotation] = useState(0);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [showThumbs, setShowThumbs] = useState(true);
+  const [slideshow, setSlideshow] = useState(false);
+  const [slideInterval, setSlideInterval] = useState(3000);
   const dragRef = useRef<{ startX: number; startY: number; px: number; py: number } | null>(null);
 
-  useEffect(() => { if (open) { setIndex(startIndex); setZoom(1); setRotation(0); setPan({ x: 0, y: 0 }); } }, [open, startIndex]);
+  useEffect(() => { if (open) { setIndex(startIndex); setZoom(1); setRotation(0); setPan({ x: 0, y: 0 }); setSlideshow(false); } }, [open, startIndex]);
 
   const current = items[index];
 
