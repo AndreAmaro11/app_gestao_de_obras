@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, Layers } from "lucide-react";
+import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, Layers, FileSpreadsheet } from "lucide-react";
+import { exportToExcel } from "@/lib/excelExport";
 import { useChecklistByObra, useCreateChecklistItem, useToggleChecklist, useDeleteChecklistItem, useUpdateChecklistItem } from "@/hooks/useChecklist";
 import { useEtapas } from "@/hooks/useEtapas";
 import { useSubetapas } from "@/hooks/useSubetapas";
@@ -120,6 +121,24 @@ const ChecklistTab = ({ obraId }: Props) => {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => exportToExcel(
+              (checklist || []) as any[],
+              [
+                { header: "Etapa", accessor: (c: any) => c.etapas?.nome || "", width: 25 },
+                { header: "Item", accessor: "item", width: 40 },
+                { header: "Concluído", accessor: (c: any) => c.concluido ? "Sim" : "Não", width: 11 },
+                { header: "Observação", accessor: (c: any) => c.observacao || "", width: 30 },
+              ],
+              "checklist",
+              "Checklist"
+            )}
+            disabled={!checklist?.length}
+          >
+            <FileSpreadsheet className="h-4 w-4 mr-1" />Excel
+          </Button>
           <Button
             size="sm"
             variant={agrupado ? "secondary" : "outline"}

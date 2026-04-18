@@ -9,8 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import {
   Plus, Trash2, Camera, Video, Cloud, Sun, CloudRain, CloudSnow, CloudDrizzle,
-  Image as ImageIcon, Play, Calendar, Filter, ChevronDown, ChevronRight, Upload
+  Image as ImageIcon, Play, Calendar, Filter, ChevronDown, ChevronRight, Upload, FileSpreadsheet
 } from "lucide-react";
+import { exportToExcel, formatDateForExcel } from "@/lib/excelExport";
 import { useRdos, useCreateRdo, useUpdateRdo, useDeleteRdo, useUploadRdoMidia, useDeleteRdoMidia } from "@/hooks/useRdo";
 import { useEtapas } from "@/hooks/useEtapas";
 import { useSubetapas } from "@/hooks/useSubetapas";
@@ -204,9 +205,30 @@ const RdoTab = ({ obraId }: Props) => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">Relatório de Obra (RDO)</h2>
-        <Button onClick={() => setDialogOpen(true)} className="gradient-primary text-white">
-          <Plus className="h-4 w-4 mr-2" /> Novo Relatório
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => exportToExcel(
+              (filteredRdos || []) as any[],
+              [
+                { header: "Data", accessor: (r: any) => formatDateForExcel(r.data), width: 12 },
+                { header: "Clima", accessor: (r: any) => climaLabel[r.clima] || r.clima || "", width: 12 },
+                { header: "Etapa", accessor: (r: any) => r.etapas?.nome || "", width: 22 },
+                { header: "Subetapa", accessor: (r: any) => r.subetapas?.nome || "", width: 22 },
+                { header: "Descrição", accessor: (r: any) => r.descricao || "", width: 50 },
+                { header: "Mídias", accessor: (r: any) => r.rdo_midias?.length || 0, width: 8 },
+              ],
+              "rdo",
+              "RDO"
+            )}
+            disabled={!filteredRdos?.length}
+          >
+            <FileSpreadsheet className="h-4 w-4 mr-1" />Excel
+          </Button>
+          <Button onClick={() => setDialogOpen(true)} className="gradient-primary text-white">
+            <Plus className="h-4 w-4 mr-2" /> Novo Relatório
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}

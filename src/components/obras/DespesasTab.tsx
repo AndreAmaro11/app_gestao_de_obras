@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Layers, Paperclip, Download, X, FileText, Image as ImageIcon, Eye, ExternalLink } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Layers, Paperclip, Download, X, FileText, Image as ImageIcon, Eye, ExternalLink, FileSpreadsheet } from "lucide-react";
+import { exportToExcel, formatDateForExcel } from "@/lib/excelExport";
 import { useDespesas, useCreateDespesa, useUpdateDespesa, useDeleteDespesa } from "@/hooks/useDespesas";
 import { useDespesaAnexos, useUploadDespesaAnexo, useDeleteDespesaAnexo, useDownloadDespesaAnexo, getDespesaAnexoSignedUrl } from "@/hooks/useDespesaAnexos";
 import { useEtapas } from "@/hooks/useEtapas";
@@ -202,6 +203,31 @@ const DespesasTab = ({ obraId }: Props) => {
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
         <h2 className="text-lg font-semibold">Despesas</h2>
         <div className="flex items-center gap-2 self-end sm:self-auto">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => exportToExcel(
+              sorted as any[],
+              [
+                { header: "Data", accessor: (d: any) => formatDateForExcel(d.data), width: 12 },
+                { header: "Descrição", accessor: "descricao", width: 35 },
+                { header: "Etapa", accessor: (d: any) => d.etapas?.nome || "", width: 22 },
+                { header: "Subetapa", accessor: (d: any) => d.subetapas?.nome || "", width: 22 },
+                { header: "Fornecedor", accessor: (d: any) => d.fornecedores?.nome || "", width: 25 },
+                { header: "Categoria", accessor: (d: any) => categoriaLabel[d.categoria] || d.categoria, width: 16 },
+                { header: "Valor Previsto", accessor: (d: any) => Number(d.valor_previsto || 0), width: 14, numFmt: "R$ #,##0.00" },
+                { header: "Valor Real", accessor: (d: any) => Number(d.valor_real || 0), width: 14, numFmt: "R$ #,##0.00" },
+                { header: "Vencimento", accessor: (d: any) => formatDateForExcel(d.data_vencimento), width: 12 },
+                { header: "Parcelas", accessor: (d: any) => d.parcelas || 1, width: 9 },
+                { header: "Pago", accessor: (d: any) => d.pago ? "Sim" : "Não", width: 8 },
+              ],
+              "despesas",
+              "Despesas"
+            )}
+            disabled={!sorted?.length}
+          >
+            <FileSpreadsheet className="h-4 w-4 mr-1" />Excel
+          </Button>
           <Button
             size="sm"
             variant={agrupado ? "secondary" : "outline"}
