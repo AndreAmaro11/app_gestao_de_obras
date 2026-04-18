@@ -313,10 +313,10 @@ const RdoTab = ({ obraId }: Props) => {
                                 <Play className="h-8 w-8 text-muted-foreground" />
                               </div>
                             )}
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <div className="pointer-events-none absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-end p-1">
                               <Button
                                 variant="ghost" size="icon"
-                                className="h-7 w-7 text-white hover:text-destructive"
+                                className="pointer-events-auto h-7 w-7 text-white hover:text-destructive bg-black/40 hover:bg-black/60"
                                 onClick={async (e) => {
                                   e.stopPropagation();
                                   if (await confirm({ title: "Excluir mídia?", description: "Esta foto/vídeo será removida permanentemente do relatório." })) {
