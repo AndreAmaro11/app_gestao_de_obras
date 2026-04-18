@@ -53,10 +53,19 @@ const MediaLightbox = ({ items, startIndex, open, onClose }: Props) => {
       else if (e.key === "+" || e.key === "=") setZoom(z => Math.min(z + 0.25, 5));
       else if (e.key === "-") setZoom(z => Math.max(z - 0.25, 0.5));
       else if (e.key.toLowerCase() === "r") setRotation(r => (r + 90) % 360);
+      else if (e.key === " ") { e.preventDefault(); setSlideshow(s => !s); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [open, next, prev, onClose]);
+
+  // Slideshow timer (auto-advance) — pauses on videos, lets them play
+  useEffect(() => {
+    if (!open || !slideshow || items.length < 2) return;
+    if (current?.tipo === "video") return; // video plays naturally; user can advance
+    const t = setTimeout(() => next(), slideInterval);
+    return () => clearTimeout(t);
+  }, [slideshow, slideInterval, index, open, items.length, current?.tipo, next]);
 
   const handleDownload = () => {
     if (!current) return;
