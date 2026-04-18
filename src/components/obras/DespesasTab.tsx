@@ -7,9 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Layers, Paperclip, Download, X, FileText, Image as ImageIcon } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Layers, Paperclip, Download, X, FileText, Image as ImageIcon, Eye, ExternalLink } from "lucide-react";
 import { useDespesas, useCreateDespesa, useUpdateDespesa, useDeleteDespesa } from "@/hooks/useDespesas";
-import { useDespesaAnexos, useUploadDespesaAnexo, useDeleteDespesaAnexo, useDownloadDespesaAnexo } from "@/hooks/useDespesaAnexos";
+import { useDespesaAnexos, useUploadDespesaAnexo, useDeleteDespesaAnexo, useDownloadDespesaAnexo, getDespesaAnexoSignedUrl } from "@/hooks/useDespesaAnexos";
 import { useEtapas } from "@/hooks/useEtapas";
 import { useSubetapas } from "@/hooks/useSubetapas";
 import { useFornecedores, useCreateFornecedor } from "@/hooks/useFornecedores";
@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { DataToolbar, SortableHeader, useSort, useSearch } from "@/components/DataToolbar";
 import { Textarea } from "@/components/ui/textarea";
 import { useConfirm } from "@/components/ConfirmDialog";
+import MediaLightbox, { LightboxItem } from "@/components/MediaLightbox";
 
 
 const categoriaLabel: Record<string, string> = {
@@ -575,6 +576,27 @@ const AnexosDialog = ({ despesaId, open, onOpenChange }: { despesaId: string | n
   const { toast } = useToast();
   const confirm = useConfirm();
 
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
+  const [lightboxItems, setLightboxItems] = useState<LightboxItem[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  // Preload signed URLs for image previews/thumbs
+  useMemo(() => {
+    if (!anexos) return;
+    anexos.forEach(async (a: any) => {
+      if (signedUrls[a.id]) return;
+      try {
+        const url = await getDespesaAnexoSignedUrl(a.url, 3600);
+        setSignedUrls((prev) => ({ ...prev, [a.id]: url }));
+      } catch {/* ignore */}
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anexos]);
+
+  const isImage = (t: string | null) => !!t?.startsWith("image/");
+  const isPdf = (t: string | null) => t === "application/pdf";
+
   const handleUpload = async (files: FileList) => {
     if (!despesaId) return;
     for (const file of Array.from(files)) {
@@ -604,6 +626,30 @@ const AnexosDialog = ({ despesaId, open, onOpenChange }: { despesaId: string | n
     }
   };
 
+  const handleOpen = async (anexo: any) => {
+    try {
+      const url = signedUrls[anexo.id] || await getDespesaAnexoSignedUrl(anexo.url, 3600);
+      if (isImage(anexo.tipo_arquivo)) {
+        // Open image lightbox over all image attachments
+        const imgs = (anexos || []).filter((x: any) => isImage(x.tipo_arquivo));
+        const items = await Promise.all(imgs.map(async (x: any) => ({
+          id: x.id,
+          url: signedUrls[x.id] || await getDespesaAnexoSignedUrl(x.url, 3600),
+          tipo: "foto" as const,
+          descricao: x.nome,
+        })));
+        setLightboxItems(items);
+        setLightboxIndex(imgs.findIndex((x: any) => x.id === anexo.id));
+        setLightboxOpen(true);
+      } else {
+        // Open in new tab (PDFs, docs, etc.)
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
+    } catch (err: any) {
+      toast({ title: "Erro ao abrir arquivo", description: err.message, variant: "destructive" });
+    }
+  };
+
   const formatSize = (bytes: number | null) => {
     if (!bytes) return "";
     if (bytes < 1024) return `${bytes} B`;
@@ -617,57 +663,86 @@ const AnexosDialog = ({ despesaId, open, onOpenChange }: { despesaId: string | n
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>Anexos da Despesa</DialogTitle></DialogHeader>
-        <div className="space-y-4">
-          {/* Upload area */}
-          <label className="flex flex-col items-center justify-center border-2 border-dashed border-muted-foreground/30 rounded-lg p-6 cursor-pointer hover:border-primary/50 transition-colors">
-            <Paperclip className="h-8 w-8 text-muted-foreground mb-2" />
-            <span className="text-sm text-muted-foreground">Clique ou arraste arquivos</span>
-            <span className="text-xs text-muted-foreground mt-1">Comprovantes, notas fiscais, etc. (máx. 10MB)</span>
-            <input
-              type="file"
-              multiple
-              className="hidden"
-              onChange={(e) => e.target.files && handleUpload(e.target.files)}
-            />
-          </label>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Anexos da Despesa</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            {/* Upload area */}
+            <label className="flex flex-col items-center justify-center border-2 border-dashed border-muted-foreground/30 rounded-lg p-6 cursor-pointer hover:border-primary/50 transition-colors">
+              <Paperclip className="h-8 w-8 text-muted-foreground mb-2" />
+              <span className="text-sm text-muted-foreground">Clique ou arraste arquivos</span>
+              <span className="text-xs text-muted-foreground mt-1">Comprovantes, notas fiscais, etc. (máx. 10MB)</span>
+              <input
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(e) => e.target.files && handleUpload(e.target.files)}
+              />
+            </label>
 
-          {/* Loading */}
-          {uploadAnexo.isPending && (
-            <p className="text-sm text-muted-foreground text-center">Enviando...</p>
-          )}
+            {/* Loading */}
+            {uploadAnexo.isPending && (
+              <p className="text-sm text-muted-foreground text-center">Enviando...</p>
+            )}
 
-          {/* File list */}
-          {isLoading ? (
-            <p className="text-sm text-muted-foreground text-center">Carregando anexos...</p>
-          ) : !anexos?.length ? (
-            <p className="text-sm text-muted-foreground text-center py-4">Nenhum anexo</p>
-          ) : (
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {anexos.map((a: any) => (
-                <div key={a.id} className="flex items-center gap-3 p-2 rounded-md border bg-muted/20">
-                  {getFileIcon(a.tipo_arquivo)}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{a.nome}</p>
-                    <p className="text-xs text-muted-foreground">{formatSize(a.tamanho)}</p>
+            {/* File list */}
+            {isLoading ? (
+              <p className="text-sm text-muted-foreground text-center">Carregando anexos...</p>
+            ) : !anexos?.length ? (
+              <p className="text-sm text-muted-foreground text-center py-4">Nenhum anexo</p>
+            ) : (
+              <div className="space-y-2 max-h-72 overflow-y-auto">
+                {anexos.map((a: any) => (
+                  <div key={a.id} className="flex items-center gap-3 p-2 rounded-md border bg-muted/20">
+                    {isImage(a.tipo_arquivo) && signedUrls[a.id] ? (
+                      <button
+                        type="button"
+                        onClick={() => handleOpen(a)}
+                        className="h-10 w-10 rounded overflow-hidden border bg-muted shrink-0"
+                        title="Visualizar"
+                      >
+                        <img src={signedUrls[a.id]} alt="" className="h-full w-full object-cover" />
+                      </button>
+                    ) : (
+                      <div className="h-10 w-10 rounded border bg-muted/50 flex items-center justify-center shrink-0">
+                        {getFileIcon(a.tipo_arquivo)}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{a.nome}</p>
+                      <p className="text-xs text-muted-foreground">{formatSize(a.tamanho)}</p>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost" size="icon" className="h-7 w-7"
+                        onClick={() => handleOpen(a)}
+                        title={isImage(a.tipo_arquivo) ? "Visualizar" : "Abrir em nova aba"}
+                      >
+                        {isImage(a.tipo_arquivo) ? <Eye className="h-3.5 w-3.5" /> : <ExternalLink className="h-3.5 w-3.5" />}
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => downloadAnexo(a.url, a.nome)} title="Baixar">
+                        <Download className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(a)} title="Excluir">
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => downloadAnexo(a.url, a.nome)} title="Baixar">
-                      <Download className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(a)} title="Excluir">
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <MediaLightbox
+        items={lightboxItems}
+        startIndex={lightboxIndex}
+        open={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+      />
+    </>
   );
 };
 

@@ -74,3 +74,11 @@ export const useDownloadDespesaAnexo = () => {
     URL.revokeObjectURL(a.href);
   };
 };
+
+export const getDespesaAnexoSignedUrl = async (path: string, expiresIn = 3600) => {
+  const { data, error } = await supabase.storage
+    .from("despesa-anexos")
+    .createSignedUrl(path, expiresIn);
+  if (error) throw error;
+  return data.signedUrl;
+};

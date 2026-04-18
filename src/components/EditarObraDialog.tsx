@@ -7,7 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useUpdateObra } from "@/hooks/useObras";
 import { useObraImagens, useUploadObraImagem, useSetCapa, useDeleteObraImagem } from "@/hooks/useObraImagens";
 import { useToast } from "@/hooks/use-toast";
-import { ImagePlus, Star, Trash2 } from "lucide-react";
+import { useConfirm } from "@/components/ConfirmDialog";
+import MediaLightbox, { LightboxItem } from "@/components/MediaLightbox";
+import { ImagePlus, Star, Trash2, Eye } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 interface Props {
@@ -29,7 +31,29 @@ const EditarObraDialog = ({ obra, open, onOpenChange }: Props) => {
   const setCapa = useSetCapa();
   const deleteImagem = useDeleteObraImagem();
   const { toast } = useToast();
+  const confirm = useConfirm();
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
+  const lightboxItems: LightboxItem[] = (imagens || []).map((img) => ({
+    id: img.id,
+    url: img.url,
+    tipo: "foto" as const,
+  }));
+
+  const openLightbox = (i: number) => {
+    setLightboxIndex(i);
+    setLightboxOpen(true);
+  };
+
+  const handleDeleteImagem = async (imagemId: string) => {
+    if (await confirm({
+      title: "Excluir imagem?",
+      description: "Esta foto será removida permanentemente da galeria.",
+    })) {
+      deleteImagem.mutate({ imagemId, obraId: obra.id });
+    }
+  };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -102,21 +126,33 @@ const EditarObraDialog = ({ obra, open, onOpenChange }: Props) => {
           <div className="space-y-2">
             <Label>Imagens da Obra</Label>
             <div className="grid grid-cols-3 gap-2">
-              {imagens?.map((img) => (
+              {imagens?.map((img, i) => (
                 <div key={img.id} className="relative group rounded-md overflow-hidden border aspect-video bg-muted">
-                  <img src={img.url} alt="" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
-                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-white hover:text-accent"
-                      onClick={() => setCapa.mutate({ imagemId: img.id, obraId: obra.id })}>
+                  <img
+                    src={img.url}
+                    alt=""
+                    className="w-full h-full object-cover cursor-zoom-in"
+                    onClick={() => openLightbox(i)}
+                  />
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1 pointer-events-none">
+                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-white hover:text-white hover:bg-white/20 pointer-events-auto"
+                      onClick={(e) => { e.stopPropagation(); openLightbox(i); }}
+                      title="Visualizar">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-white hover:text-accent hover:bg-white/20 pointer-events-auto"
+                      onClick={(e) => { e.stopPropagation(); setCapa.mutate({ imagemId: img.id, obraId: obra.id }); }}
+                      title={img.is_capa ? "Capa atual" : "Definir como capa"}>
                       <Star className={`h-4 w-4 ${img.is_capa ? "fill-accent text-accent" : ""}`} />
                     </Button>
-                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-white hover:text-destructive"
-                      onClick={() => deleteImagem.mutate({ imagemId: img.id, obraId: obra.id })}>
+                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-white hover:text-destructive hover:bg-white/20 pointer-events-auto"
+                      onClick={(e) => { e.stopPropagation(); handleDeleteImagem(img.id); }}
+                      title="Excluir">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                   {img.is_capa && (
-                    <span className="absolute top-1 left-1 bg-accent text-accent-foreground text-[10px] px-1.5 py-0.5 rounded font-medium">Capa</span>
+                    <span className="absolute top-1 left-1 bg-accent text-accent-foreground text-[10px] px-1.5 py-0.5 rounded font-medium pointer-events-none">Capa</span>
                   )}
                 </div>
               ))}
@@ -129,6 +165,13 @@ const EditarObraDialog = ({ obra, open, onOpenChange }: Props) => {
             </div>
             <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFileUpload} />
           </div>
+
+          <MediaLightbox
+            items={lightboxItems}
+            startIndex={lightboxIndex}
+            open={lightboxOpen}
+            onClose={() => setLightboxOpen(false)}
+          />
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>

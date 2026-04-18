@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, X, Download, ExternalLink, Maximize2, Play } from "lucide-react";
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, X, Download, ExternalLink, Maximize2, Play, Pause, Timer } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 export interface LightboxItem {
@@ -24,9 +25,11 @@ const MediaLightbox = ({ items, startIndex, open, onClose }: Props) => {
   const [rotation, setRotation] = useState(0);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [showThumbs, setShowThumbs] = useState(true);
+  const [slideshow, setSlideshow] = useState(false);
+  const [slideInterval, setSlideInterval] = useState(3000);
   const dragRef = useRef<{ startX: number; startY: number; px: number; py: number } | null>(null);
 
-  useEffect(() => { if (open) { setIndex(startIndex); setZoom(1); setRotation(0); setPan({ x: 0, y: 0 }); } }, [open, startIndex]);
+  useEffect(() => { if (open) { setIndex(startIndex); setZoom(1); setRotation(0); setPan({ x: 0, y: 0 }); setSlideshow(false); } }, [open, startIndex]);
 
   const current = items[index];
 
@@ -50,10 +53,19 @@ const MediaLightbox = ({ items, startIndex, open, onClose }: Props) => {
       else if (e.key === "+" || e.key === "=") setZoom(z => Math.min(z + 0.25, 5));
       else if (e.key === "-") setZoom(z => Math.max(z - 0.25, 0.5));
       else if (e.key.toLowerCase() === "r") setRotation(r => (r + 90) % 360);
+      else if (e.key === " ") { e.preventDefault(); setSlideshow(s => !s); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [open, next, prev, onClose]);
+
+  // Slideshow timer (auto-advance) — pauses on videos, lets them play
+  useEffect(() => {
+    if (!open || !slideshow || items.length < 2) return;
+    if (current?.tipo === "video") return; // video plays naturally; user can advance
+    const t = setTimeout(() => next(), slideInterval);
+    return () => clearTimeout(t);
+  }, [slideshow, slideInterval, index, open, items.length, current?.tipo, next]);
 
   const handleDownload = () => {
     if (!current) return;
@@ -101,6 +113,33 @@ const MediaLightbox = ({ items, startIndex, open, onClose }: Props) => {
             {current.descricao && <span className="text-white/70 truncate max-w-md">{current.descricao}</span>}
           </div>
           <div className="flex items-center gap-1">
+            {items.length > 1 && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("text-white hover:bg-white/20", slideshow && "bg-white/20")}
+                  onClick={() => setSlideshow(s => !s)}
+                  title={slideshow ? "Pausar apresentação (Espaço)" : "Iniciar apresentação (Espaço)"}
+                >
+                  {slideshow ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                </Button>
+                <Select value={String(slideInterval)} onValueChange={(v) => setSlideInterval(Number(v))}>
+                  <SelectTrigger className="h-8 w-[88px] bg-transparent border-white/30 text-white text-xs hover:bg-white/10">
+                    <Timer className="h-3.5 w-3.5 mr-1" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1500">1,5s</SelectItem>
+                    <SelectItem value="3000">3s</SelectItem>
+                    <SelectItem value="5000">5s</SelectItem>
+                    <SelectItem value="8000">8s</SelectItem>
+                    <SelectItem value="12000">12s</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="w-px h-5 bg-white/20 mx-1" />
+              </>
+            )}
             {current.tipo === "foto" && (
               <>
                 <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={() => setZoom(z => Math.max(z - 0.25, 0.5))} title="Diminuir zoom">
