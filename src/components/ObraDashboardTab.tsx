@@ -51,6 +51,7 @@ const ObraDashboardTab = ({ obraId, obraNome }: Props) => {
   const { data: etapas } = useEtapas(obraId);
   const { data: despesas } = useDespesas(obraId);
   const { data: receitas } = useReceitas(obraId);
+  const { data: fornecedores } = useFornecedores();
 
   const stats = useMemo(() => {
     const etapasList = etapas || [];
