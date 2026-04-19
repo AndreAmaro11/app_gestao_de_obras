@@ -6,6 +6,9 @@ import { cn } from "@/lib/utils";
 import { useEtapas } from "@/hooks/useEtapas";
 import { useDespesas } from "@/hooks/useDespesas";
 import { useReceitas } from "@/hooks/useReceitas";
+import { useFornecedores } from "@/hooks/useFornecedores";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -48,6 +51,7 @@ const ObraDashboardTab = ({ obraId, obraNome }: Props) => {
   const { data: etapas } = useEtapas(obraId);
   const { data: despesas } = useDespesas(obraId);
   const { data: receitas } = useReceitas(obraId);
+  const { data: fornecedores } = useFornecedores();
 
   const stats = useMemo(() => {
     const etapasList = etapas || [];
@@ -181,6 +185,32 @@ const ObraDashboardTab = ({ obraId, obraNome }: Props) => {
       };
     });
   }, [despesas, receitas]);
+
+  // Tabela: Gastos por Fornecedor
+  const gastosFornecedor = useMemo(() => {
+    if (!despesas) return [];
+    const despesasList = (despesas || []).filter((d: any) => !d.despesa_pai_id);
+    const fornMap = new Map<string, string>();
+    (fornecedores || []).forEach((f: any) => fornMap.set(f.id, f.nome_fantasia || f.nome));
+
+    const grouped = new Map<string, { nome: string; previsto: number; realizado: number; pago: number; itens: number }>();
+    despesasList.forEach((d: any) => {
+      const key = d.fornecedor_id || "__sem__";
+      const nome = d.fornecedor_id ? (fornMap.get(d.fornecedor_id) || "Fornecedor removido") : "Sem fornecedor";
+      const cur = grouped.get(key) || { nome, previsto: 0, realizado: 0, pago: 0, itens: 0 };
+      cur.previsto += d.valor_previsto || 0;
+      cur.realizado += d.valor_real || 0;
+      if (d.pago) cur.pago += d.valor_real || 0;
+      cur.itens += 1;
+      grouped.set(key, cur);
+    });
+
+    return Array.from(grouped.values())
+      .filter(r => r.previsto > 0 || r.realizado > 0)
+      .sort((a, b) => b.realizado - a.realizado);
+  }, [despesas, fornecedores]);
+
+  const totalRealizadoFornecedores = gastosFornecedor.reduce((s, r) => s + r.realizado, 0);
 
   const kpis = [
     {
@@ -351,6 +381,56 @@ const ObraDashboardTab = ({ obraId, obraNome }: Props) => {
               </ResponsiveContainer>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-12">Sem receitas ou despesas para exibir</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Tabela: Gastos por Fornecedor */}
+        <Card className="shadow-sm rounded-xl border-border/50 lg:col-span-2">
+          <CardHeader className="pb-2 pt-4 px-4 flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-sm font-semibold">Gastos por Fornecedor</CardTitle>
+            <Badge variant="secondary" className="font-mono text-xs">
+              Total: {fmt(totalRealizadoFornecedores)}
+            </Badge>
+          </CardHeader>
+          <CardContent className="px-2 pb-4">
+            {gastosFornecedor.length > 0 ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs">Fornecedor</TableHead>
+                      <TableHead className="text-xs text-center w-20">Itens</TableHead>
+                      <TableHead className="text-xs text-right whitespace-nowrap">Previsto</TableHead>
+                      <TableHead className="text-xs text-right whitespace-nowrap">Realizado</TableHead>
+                      <TableHead className="text-xs text-right whitespace-nowrap">Pago</TableHead>
+                      <TableHead className="text-xs text-right whitespace-nowrap w-24">% Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {gastosFornecedor.map((row, i) => {
+                      const pct = totalRealizadoFornecedores > 0 ? (row.realizado / totalRealizadoFornecedores) * 100 : 0;
+                      const desvio = row.previsto > 0 ? ((row.realizado - row.previsto) / row.previsto) * 100 : 0;
+                      return (
+                        <TableRow key={i}>
+                          <TableCell className="font-medium text-sm">{row.nome}</TableCell>
+                          <TableCell className="text-center text-sm text-muted-foreground">{row.itens}</TableCell>
+                          <TableCell className="text-right text-sm whitespace-nowrap font-mono">{fmt(row.previsto)}</TableCell>
+                          <TableCell className="text-right text-sm whitespace-nowrap font-mono">
+                            <span className={cn(desvio > 5 && "text-destructive", desvio < -5 && "text-green-600")}>
+                              {fmt(row.realizado)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right text-sm whitespace-nowrap font-mono text-green-600">{fmt(row.pago)}</TableCell>
+                          <TableCell className="text-right text-sm whitespace-nowrap font-mono text-muted-foreground">{pct.toFixed(1)}%</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-12">Sem despesas para exibir</p>
             )}
           </CardContent>
         </Card>
