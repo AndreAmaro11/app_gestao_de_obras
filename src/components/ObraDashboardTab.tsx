@@ -6,6 +6,9 @@ import { cn } from "@/lib/utils";
 import { useEtapas } from "@/hooks/useEtapas";
 import { useDespesas } from "@/hooks/useDespesas";
 import { useReceitas } from "@/hooks/useReceitas";
+import { useFornecedores } from "@/hooks/useFornecedores";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
