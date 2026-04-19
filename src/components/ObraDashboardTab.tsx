@@ -186,6 +186,32 @@ const ObraDashboardTab = ({ obraId, obraNome }: Props) => {
     });
   }, [despesas, receitas]);
 
+  // Tabela: Gastos por Fornecedor
+  const gastosFornecedor = useMemo(() => {
+    if (!despesas) return [];
+    const despesasList = (despesas || []).filter((d: any) => !d.despesa_pai_id);
+    const fornMap = new Map<string, string>();
+    (fornecedores || []).forEach((f: any) => fornMap.set(f.id, f.nome_fantasia || f.nome));
+
+    const grouped = new Map<string, { nome: string; previsto: number; realizado: number; pago: number; itens: number }>();
+    despesasList.forEach((d: any) => {
+      const key = d.fornecedor_id || "__sem__";
+      const nome = d.fornecedor_id ? (fornMap.get(d.fornecedor_id) || "Fornecedor removido") : "Sem fornecedor";
+      const cur = grouped.get(key) || { nome, previsto: 0, realizado: 0, pago: 0, itens: 0 };
+      cur.previsto += d.valor_previsto || 0;
+      cur.realizado += d.valor_real || 0;
+      if (d.pago) cur.pago += d.valor_real || 0;
+      cur.itens += 1;
+      grouped.set(key, cur);
+    });
+
+    return Array.from(grouped.values())
+      .filter(r => r.previsto > 0 || r.realizado > 0)
+      .sort((a, b) => b.realizado - a.realizado);
+  }, [despesas, fornecedores]);
+
+  const totalRealizadoFornecedores = gastosFornecedor.reduce((s, r) => s + r.realizado, 0);
+
   const kpis = [
     {
       title: "Progresso",
