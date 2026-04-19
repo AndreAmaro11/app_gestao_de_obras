@@ -384,6 +384,56 @@ const ObraDashboardTab = ({ obraId, obraNome }: Props) => {
             )}
           </CardContent>
         </Card>
+
+        {/* Tabela: Gastos por Fornecedor */}
+        <Card className="shadow-sm rounded-xl border-border/50 lg:col-span-2">
+          <CardHeader className="pb-2 pt-4 px-4 flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-sm font-semibold">Gastos por Fornecedor</CardTitle>
+            <Badge variant="secondary" className="font-mono text-xs">
+              Total: {fmt(totalRealizadoFornecedores)}
+            </Badge>
+          </CardHeader>
+          <CardContent className="px-2 pb-4">
+            {gastosFornecedor.length > 0 ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs">Fornecedor</TableHead>
+                      <TableHead className="text-xs text-center w-20">Itens</TableHead>
+                      <TableHead className="text-xs text-right whitespace-nowrap">Previsto</TableHead>
+                      <TableHead className="text-xs text-right whitespace-nowrap">Realizado</TableHead>
+                      <TableHead className="text-xs text-right whitespace-nowrap">Pago</TableHead>
+                      <TableHead className="text-xs text-right whitespace-nowrap w-24">% Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {gastosFornecedor.map((row, i) => {
+                      const pct = totalRealizadoFornecedores > 0 ? (row.realizado / totalRealizadoFornecedores) * 100 : 0;
+                      const desvio = row.previsto > 0 ? ((row.realizado - row.previsto) / row.previsto) * 100 : 0;
+                      return (
+                        <TableRow key={i}>
+                          <TableCell className="font-medium text-sm">{row.nome}</TableCell>
+                          <TableCell className="text-center text-sm text-muted-foreground">{row.itens}</TableCell>
+                          <TableCell className="text-right text-sm whitespace-nowrap font-mono">{fmt(row.previsto)}</TableCell>
+                          <TableCell className="text-right text-sm whitespace-nowrap font-mono">
+                            <span className={cn(desvio > 5 && "text-destructive", desvio < -5 && "text-green-600")}>
+                              {fmt(row.realizado)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right text-sm whitespace-nowrap font-mono text-green-600">{fmt(row.pago)}</TableCell>
+                          <TableCell className="text-right text-sm whitespace-nowrap font-mono text-muted-foreground">{pct.toFixed(1)}%</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-12">Sem despesas para exibir</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
