@@ -394,9 +394,9 @@ const RdoTab = ({ obraId }: Props) => {
 
       {/* Create dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Novo Relatório de Obra</DialogTitle></DialogHeader>
-          <div className="space-y-4">
+        <DialogContent className="max-w-md max-h-[92vh] sm:max-h-[90vh] p-0 gap-0 flex flex-col">
+          <DialogHeader className="px-6 pt-6 pb-3 border-b shrink-0"><DialogTitle>Novo Relatório de Obra</DialogTitle></DialogHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Data</Label>
@@ -429,12 +429,12 @@ const RdoTab = ({ obraId }: Props) => {
               <Label>Descrição</Label>
               <Textarea value={descricao} onChange={e => setDescricao(e.target.value)} placeholder="Atividades realizadas, observações..." rows={3} />
             </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-              <Button onClick={handleCreate} disabled={createRdo.isPending}>
-                {createRdo.isPending ? "Criando..." : "Criar Relatório"}
-              </Button>
-            </div>
+          </div>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-6 py-3 border-t bg-background shrink-0">
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleCreate} disabled={createRdo.isPending}>
+              {createRdo.isPending ? "Criando..." : "Criar Relatório"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
