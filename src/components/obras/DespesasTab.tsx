@@ -89,7 +89,18 @@ const DespesasTab = ({ obraId }: Props) => {
   const [agrupado, setAgrupado] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [anexosDespesaId, setAnexosDespesaId] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
 
+  // Auto-abre o dialog de nova despesa quando vier ?new=1 (FAB da home mobile)
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setShowDialog(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("new");
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const resetForm = () => {
     setDescricao(""); setEtapaId(""); setSubetapaId(""); setFornecedorId("");
