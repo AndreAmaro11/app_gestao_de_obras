@@ -242,8 +242,8 @@ const DespesasTab = ({ obraId }: Props) => {
 
 
       <Dialog open={showNewFornecedor} onOpenChange={setShowNewFornecedor}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Cadastrar Fornecedor</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-lg max-h-[92vh] sm:max-h-[90vh] p-0 gap-0 flex flex-col">
+          <DialogHeader className="px-6 pt-6 pb-3 border-b shrink-0"><DialogTitle>Cadastrar Fornecedor</DialogTitle></DialogHeader>
           <form onSubmit={async (e) => {
             e.preventDefault();
             try {
@@ -258,7 +258,8 @@ const DespesasTab = ({ obraId }: Props) => {
               setNewForn({ nome: "", nome_fantasia: "", cnpj: "", telefone: "", email: "", endereco: "", observacao: "", tipo: "misto" });
               toast({ title: "Fornecedor criado!" });
             } catch (err: any) { toast({ title: "Erro", description: err.message, variant: "destructive" }); }
-          }} className="space-y-4 max-h-[70vh] overflow-y-auto">
+          }} className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Razão Social *</Label><Input value={newForn.nome} onChange={e => setNewForn({ ...newForn, nome: e.target.value })} required /></div>
               <div className="space-y-2"><Label>Nome Fantasia</Label><Input value={newForn.nome_fantasia} onChange={e => setNewForn({ ...newForn, nome_fantasia: e.target.value })} /></div>
@@ -283,9 +284,10 @@ const DespesasTab = ({ obraId }: Props) => {
             </div>
             <div className="space-y-2"><Label>Endereço</Label><Input value={newForn.endereco} onChange={e => setNewForn({ ...newForn, endereco: e.target.value })} /></div>
             <div className="space-y-2"><Label>Observação</Label><Textarea value={newForn.observacao} onChange={e => setNewForn({ ...newForn, observacao: e.target.value })} rows={2} /></div>
-            <div className="flex justify-end gap-2">
+            </div>
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-6 py-3 border-t bg-background shrink-0">
               <Button type="button" variant="outline" onClick={() => setShowNewFornecedor(false)}>Cancelar</Button>
-              <Button type="submit">Criar</Button>
+              <Button type="submit" disabled={createFornecedor.isPending}>{createFornecedor.isPending ? "Criando..." : "Criar"}</Button>
             </div>
           </form>
         </DialogContent>
