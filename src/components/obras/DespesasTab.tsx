@@ -202,10 +202,11 @@ const DespesasTab = ({ obraId }: Props) => {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
         <h2 className="text-lg font-semibold">Despesas</h2>
-        <div className="flex items-center gap-2 self-end sm:self-auto">
+        <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
           <Button
             size="sm"
             variant="outline"
+            className="hidden sm:inline-flex"
             onClick={() => exportToExcel(
               sorted as any[],
               [
@@ -231,6 +232,7 @@ const DespesasTab = ({ obraId }: Props) => {
           <Button
             size="sm"
             variant={agrupado ? "secondary" : "outline"}
+            className="hidden sm:inline-flex"
             onClick={() => setAgrupado(v => !v)}
           >
             <Layers className="h-4 w-4 mr-1" />
