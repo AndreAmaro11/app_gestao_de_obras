@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -88,7 +89,18 @@ const DespesasTab = ({ obraId }: Props) => {
   const [agrupado, setAgrupado] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [anexosDespesaId, setAnexosDespesaId] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
 
+  // Auto-abre o dialog de nova despesa quando vier ?new=1 (FAB da home mobile)
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setShowDialog(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("new");
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const resetForm = () => {
     setDescricao(""); setEtapaId(""); setSubetapaId(""); setFornecedorId("");
@@ -202,10 +214,11 @@ const DespesasTab = ({ obraId }: Props) => {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
         <h2 className="text-lg font-semibold">Despesas</h2>
-        <div className="flex items-center gap-2 self-end sm:self-auto">
+        <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
           <Button
             size="sm"
             variant="outline"
+            className="hidden sm:inline-flex"
             onClick={() => exportToExcel(
               sorted as any[],
               [
@@ -231,6 +244,7 @@ const DespesasTab = ({ obraId }: Props) => {
           <Button
             size="sm"
             variant={agrupado ? "secondary" : "outline"}
+            className="hidden sm:inline-flex"
             onClick={() => setAgrupado(v => !v)}
           >
             <Layers className="h-4 w-4 mr-1" />
@@ -242,8 +256,8 @@ const DespesasTab = ({ obraId }: Props) => {
 
 
       <Dialog open={showNewFornecedor} onOpenChange={setShowNewFornecedor}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Cadastrar Fornecedor</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-lg max-h-[92vh] sm:max-h-[90vh] p-0 gap-0 flex flex-col">
+          <DialogHeader className="px-6 pt-6 pb-3 border-b shrink-0"><DialogTitle>Cadastrar Fornecedor</DialogTitle></DialogHeader>
           <form onSubmit={async (e) => {
             e.preventDefault();
             try {
@@ -258,7 +272,8 @@ const DespesasTab = ({ obraId }: Props) => {
               setNewForn({ nome: "", nome_fantasia: "", cnpj: "", telefone: "", email: "", endereco: "", observacao: "", tipo: "misto" });
               toast({ title: "Fornecedor criado!" });
             } catch (err: any) { toast({ title: "Erro", description: err.message, variant: "destructive" }); }
-          }} className="space-y-4 max-h-[70vh] overflow-y-auto">
+          }} className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Razão Social *</Label><Input value={newForn.nome} onChange={e => setNewForn({ ...newForn, nome: e.target.value })} required /></div>
               <div className="space-y-2"><Label>Nome Fantasia</Label><Input value={newForn.nome_fantasia} onChange={e => setNewForn({ ...newForn, nome_fantasia: e.target.value })} /></div>
@@ -283,18 +298,20 @@ const DespesasTab = ({ obraId }: Props) => {
             </div>
             <div className="space-y-2"><Label>Endereço</Label><Input value={newForn.endereco} onChange={e => setNewForn({ ...newForn, endereco: e.target.value })} /></div>
             <div className="space-y-2"><Label>Observação</Label><Textarea value={newForn.observacao} onChange={e => setNewForn({ ...newForn, observacao: e.target.value })} rows={2} /></div>
-            <div className="flex justify-end gap-2">
+            </div>
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-6 py-3 border-t bg-background shrink-0">
               <Button type="button" variant="outline" onClick={() => setShowNewFornecedor(false)}>Cancelar</Button>
-              <Button type="submit">Criar</Button>
+              <Button type="submit" disabled={createFornecedor.isPending}>{createFornecedor.isPending ? "Criando..." : "Criar"}</Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
 
       <Dialog open={showDialog} onOpenChange={(v) => { setShowDialog(v); if (!v) resetForm(); }}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>{editing ? "Editar Despesa" : "Nova Despesa"}</DialogTitle></DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <DialogContent className="max-w-lg max-h-[92vh] sm:max-h-[90vh] p-0 gap-0 flex flex-col">
+          <DialogHeader className="px-6 pt-6 pb-3 border-b shrink-0"><DialogTitle>{editing ? "Editar Despesa" : "Nova Despesa"}</DialogTitle></DialogHeader>
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             <div className="space-y-2"><Label>Descrição</Label><Input value={descricao} onChange={e => setDescricao(e.target.value)} required /></div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -354,7 +371,8 @@ const DespesasTab = ({ obraId }: Props) => {
                 com vencimentos mensais a partir de {new Date(dataVencimento + "T12:00:00").toLocaleDateString("pt-BR")}.
               </p>
             )}
-            <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => { setShowDialog(false); resetForm(); }}>Cancelar</Button><Button type="submit">{editing ? "Salvar" : "Criar"}</Button></div>
+            </div>
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-6 py-3 border-t bg-background shrink-0"><Button type="button" variant="outline" onClick={() => { setShowDialog(false); resetForm(); }}>Cancelar</Button><Button type="submit" disabled={createDespesa.isPending || updateDespesa.isPending}>{createDespesa.isPending || updateDespesa.isPending ? "Salvando..." : (editing ? "Salvar" : "Criar")}</Button></div>
           </form>
         </DialogContent>
       </Dialog>
@@ -389,7 +407,74 @@ const DespesasTab = ({ obraId }: Props) => {
         </Select>
       </DataToolbar>
 
-      <div className="bg-card rounded-md border overflow-x-auto -mx-3 sm:mx-0">
+      {/* Mobile cards */}
+      <div className="md:hidden space-y-2">
+        {isLoading ? (
+          <p className="text-center text-muted-foreground py-8 text-sm">Carregando...</p>
+        ) : !sorted.length ? (
+          <p className="text-center text-muted-foreground py-8 text-sm">{search ? "Nenhum resultado" : "Nenhuma despesa"}</p>
+        ) : (
+          <>
+            {sorted.map((d: any) => {
+              const children = getChildren(d.id);
+              const hasChildren = children.length > 0;
+              const overBudget = d.valor_real > d.valor_previsto;
+              return (
+                <div key={d.id} className="bg-card border rounded-lg p-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm truncate">{d.descricao}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {new Date(d.data + "T12:00:00").toLocaleDateString("pt-BR")}
+                        {d.etapas?.nome && ` • ${d.etapas.nome}`}
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] shrink-0">{categoriaLabel[d.categoria]}</Badge>
+                  </div>
+                  {d.fornecedores?.nome && <p className="text-xs text-muted-foreground">{d.fornecedores.nome}</p>}
+                  <div className="flex items-center justify-between gap-2 pt-1 border-t">
+                    <div className="text-xs">
+                      <span className="text-muted-foreground">Prev:</span> <span className="font-mono">R$ {fmt(d.valor_previsto)}</span>
+                      {d.valor_real > 0 && (
+                        <> <span className="text-muted-foreground ml-2">Real:</span> <span className={`font-mono ${overBudget ? "text-destructive font-semibold" : ""}`}>R$ {fmt(d.valor_real)}</span></>
+                      )}
+                    </div>
+                    {(d.parcelas > 1 || hasChildren) && (
+                      <Badge variant="secondary" className="text-[10px]">{d.parcelas || children.length}x</Badge>
+                    )}
+                  </div>
+                  {d.data_vencimento && (
+                    <p className="text-xs text-muted-foreground">Venc: {new Date(d.data_vencimento + "T12:00:00").toLocaleDateString("pt-BR")}</p>
+                  )}
+                  <div className="flex items-center justify-between pt-1">
+                    <label className="flex items-center gap-2 text-xs">
+                      <Switch checked={d.pago} onCheckedChange={() => handleTogglePago(d)} />
+                      <span className="text-muted-foreground">{d.pago ? "Pago" : "Não pago"}</span>
+                    </label>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setAnexosDespesaId(d.id)}>
+                        <Paperclip className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(d)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteDespesa(d)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <div className="bg-muted/40 border rounded-lg p-3 text-sm font-semibold flex justify-between">
+              <span>Total ({sorted.length})</span>
+              <span className="font-mono">R$ {fmt(totalReal || totalPrevisto)}</span>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="hidden md:block bg-card rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
