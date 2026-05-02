@@ -295,7 +295,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
       </div>
 
       {/* Resumo por etapa */}
-      <div className="bg-card rounded-md border">
+      <div className="bg-card rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -442,7 +442,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
           )}
         </div>
         <CollapsibleContent className="mt-3">
-          <div className="bg-card rounded-md border">
+          <div className="bg-card rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
