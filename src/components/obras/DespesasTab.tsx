@@ -355,7 +355,8 @@ const DespesasTab = ({ obraId }: Props) => {
                 com vencimentos mensais a partir de {new Date(dataVencimento + "T12:00:00").toLocaleDateString("pt-BR")}.
               </p>
             )}
-            <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => { setShowDialog(false); resetForm(); }}>Cancelar</Button><Button type="submit">{editing ? "Salvar" : "Criar"}</Button></div>
+            </div>
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-6 py-3 border-t bg-background shrink-0"><Button type="button" variant="outline" onClick={() => { setShowDialog(false); resetForm(); }}>Cancelar</Button><Button type="submit" disabled={createDespesa.isPending || updateDespesa.isPending}>{createDespesa.isPending || updateDespesa.isPending ? "Salvando..." : (editing ? "Salvar" : "Criar")}</Button></div>
           </form>
         </DialogContent>
       </Dialog>
