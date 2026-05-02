@@ -220,10 +220,10 @@ const FinanceiroTab = ({ obraId }: Props) => {
     <div className="space-y-6">
       <h2 className="text-lg font-semibold">Financeiro</h2>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
+      {/* Filters - scroll horizontal no mobile */}
+      <div className="flex gap-2 sm:flex-wrap sm:gap-3 items-center overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 pb-1">
         <Select value={filtroAno} onValueChange={setFiltroAno}>
-          <SelectTrigger className="w-32 h-9"><SelectValue placeholder="Ano" /></SelectTrigger>
+          <SelectTrigger className="w-28 sm:w-32 h-9 shrink-0"><SelectValue placeholder="Ano" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos os anos</SelectItem>
             {availableYears.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
@@ -231,7 +231,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
         </Select>
 
         <Select value={filtroPeriodo} onValueChange={setFiltroPeriodo}>
-          <SelectTrigger className="w-36 h-9"><SelectValue placeholder="Período" /></SelectTrigger>
+          <SelectTrigger className="w-32 sm:w-36 h-9 shrink-0"><SelectValue placeholder="Período" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todo período</SelectItem>
             <SelectItem value="S1">1º Semestre</SelectItem>
@@ -244,7 +244,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
         </Select>
 
         <Select value={filtroPago} onValueChange={setFiltroPago}>
-          <SelectTrigger className="w-36 h-9"><SelectValue placeholder="Pagamento" /></SelectTrigger>
+          <SelectTrigger className="w-32 sm:w-36 h-9 shrink-0"><SelectValue placeholder="Pagamento" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos</SelectItem>
             <SelectItem value="pago">Pago ({totalPago})</SelectItem>
@@ -253,7 +253,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
         </Select>
 
         <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-          <SelectTrigger className="w-40 h-9"><SelectValue placeholder="Categoria" /></SelectTrigger>
+          <SelectTrigger className="w-36 sm:w-40 h-9 shrink-0"><SelectValue placeholder="Categoria" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todas categorias</SelectItem>
             {Object.entries(categoriaLabel).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
@@ -261,7 +261,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
         </Select>
 
         <Select value={filtroEtapa} onValueChange={setFiltroEtapa}>
-          <SelectTrigger className="w-40 h-9"><SelectValue placeholder="Etapa" /></SelectTrigger>
+          <SelectTrigger className="w-36 sm:w-40 h-9 shrink-0"><SelectValue placeholder="Etapa" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todas etapas</SelectItem>
             {etapas?.map(et => <SelectItem key={et.id} value={et.id}>{et.nome}</SelectItem>)}
@@ -269,8 +269,8 @@ const FinanceiroTab = ({ obraId }: Props) => {
         </Select>
 
         {(filtroAno !== "todos" || filtroPeriodo !== "todos" || filtroPago !== "todos" || filtroCategoria !== "todos" || filtroEtapa !== "todos") && (
-          <Button variant="ghost" size="sm" onClick={() => { setFiltroAno("todos"); setFiltroPeriodo("todos"); setFiltroPago("todos"); setFiltroCategoria("todos"); setFiltroEtapa("todos"); }}>
-            Limpar filtros
+          <Button variant="ghost" size="sm" className="shrink-0" onClick={() => { setFiltroAno("todos"); setFiltroPeriodo("todos"); setFiltroPago("todos"); setFiltroCategoria("todos"); setFiltroEtapa("todos"); }}>
+            Limpar
           </Button>
         )}
       </div>
