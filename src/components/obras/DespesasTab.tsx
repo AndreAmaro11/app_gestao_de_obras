@@ -393,7 +393,74 @@ const DespesasTab = ({ obraId }: Props) => {
         </Select>
       </DataToolbar>
 
-      <div className="bg-card rounded-md border overflow-x-auto -mx-3 sm:mx-0">
+      {/* Mobile cards */}
+      <div className="md:hidden space-y-2">
+        {isLoading ? (
+          <p className="text-center text-muted-foreground py-8 text-sm">Carregando...</p>
+        ) : !sorted.length ? (
+          <p className="text-center text-muted-foreground py-8 text-sm">{search ? "Nenhum resultado" : "Nenhuma despesa"}</p>
+        ) : (
+          <>
+            {sorted.map((d: any) => {
+              const children = getChildren(d.id);
+              const hasChildren = children.length > 0;
+              const overBudget = d.valor_real > d.valor_previsto;
+              return (
+                <div key={d.id} className="bg-card border rounded-lg p-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm truncate">{d.descricao}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {new Date(d.data + "T12:00:00").toLocaleDateString("pt-BR")}
+                        {d.etapas?.nome && ` • ${d.etapas.nome}`}
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] shrink-0">{categoriaLabel[d.categoria]}</Badge>
+                  </div>
+                  {d.fornecedores?.nome && <p className="text-xs text-muted-foreground">{d.fornecedores.nome}</p>}
+                  <div className="flex items-center justify-between gap-2 pt-1 border-t">
+                    <div className="text-xs">
+                      <span className="text-muted-foreground">Prev:</span> <span className="font-mono">R$ {fmt(d.valor_previsto)}</span>
+                      {d.valor_real > 0 && (
+                        <> <span className="text-muted-foreground ml-2">Real:</span> <span className={`font-mono ${overBudget ? "text-destructive font-semibold" : ""}`}>R$ {fmt(d.valor_real)}</span></>
+                      )}
+                    </div>
+                    {(d.parcelas > 1 || hasChildren) && (
+                      <Badge variant="secondary" className="text-[10px]">{d.parcelas || children.length}x</Badge>
+                    )}
+                  </div>
+                  {d.data_vencimento && (
+                    <p className="text-xs text-muted-foreground">Venc: {new Date(d.data_vencimento + "T12:00:00").toLocaleDateString("pt-BR")}</p>
+                  )}
+                  <div className="flex items-center justify-between pt-1">
+                    <label className="flex items-center gap-2 text-xs">
+                      <Switch checked={d.pago} onCheckedChange={() => handleTogglePago(d)} />
+                      <span className="text-muted-foreground">{d.pago ? "Pago" : "Não pago"}</span>
+                    </label>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setAnexosDespesaId(d.id)}>
+                        <Paperclip className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(d)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteDespesa(d)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <div className="bg-muted/40 border rounded-lg p-3 text-sm font-semibold flex justify-between">
+              <span>Total ({sorted.length})</span>
+              <span className="font-mono">R$ {fmt(totalReal || totalPrevisto)}</span>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="hidden md:block bg-card rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
