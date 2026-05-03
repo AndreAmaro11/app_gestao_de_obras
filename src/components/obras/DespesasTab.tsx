@@ -109,6 +109,7 @@ const DespesasTab = ({ obraId }: Props) => {
     setCategoria("material"); setValorPrev(""); setValorReal(""); setData("");
     setCondicaoPagamento(""); setDataVencimento(""); setParcelas("1");
     setEditing(null);
+    unsaved.reset();
   };
 
   const openEdit = (d: any) => {
@@ -119,6 +120,14 @@ const DespesasTab = ({ obraId }: Props) => {
     setCondicaoPagamento(d.condicao_pagamento || "");
     setDataVencimento(d.data_vencimento || ""); setParcelas(String(d.parcelas || 1));
     setShowDialog(true);
+    unsaved.reset();
+  };
+
+  const tryCloseDialog = async () => {
+    if (await unsaved.confirmDiscard()) {
+      setShowDialog(false);
+      resetForm();
+    }
   };
 
   const toggleExpand = (id: string) => {
