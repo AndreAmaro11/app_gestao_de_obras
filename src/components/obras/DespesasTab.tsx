@@ -559,8 +559,7 @@ const DespesasTab = ({ obraId }: Props) => {
                 <TableRow className="bg-muted/30 font-semibold">
                   <TableCell />
                   <TableCell colSpan={5} className="text-right">Total Geral</TableCell>
-                  <TableCell className="whitespace-nowrap">R$ {fmt(totalPrevisto)}</TableCell>
-                  <TableCell className="whitespace-nowrap">R$ {fmt(totalReal)}</TableCell>
+                  <TableCell className="whitespace-nowrap">R$ {fmt(totalReal || totalPrevisto)}</TableCell>
                   <TableCell colSpan={4} />
                 </TableRow>
               </>
