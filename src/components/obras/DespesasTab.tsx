@@ -447,11 +447,8 @@ const DespesasTab = ({ obraId }: Props) => {
                   </div>
                   {d.fornecedores?.nome && <p className="text-xs text-muted-foreground">{d.fornecedores.nome}</p>}
                   <div className="flex items-center justify-between gap-2 pt-1 border-t">
-                    <div className="text-xs">
-                      <span className="text-muted-foreground">Prev:</span> <span className="font-mono">R$ {fmt(d.valor_previsto)}</span>
-                      {d.valor_real > 0 && (
-                        <> <span className="text-muted-foreground ml-2">Real:</span> <span className={`font-mono ${overBudget ? "text-destructive font-semibold" : ""}`}>R$ {fmt(d.valor_real)}</span></>
-                      )}
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">Valor:</span> <span className="font-mono font-semibold">R$ {fmt(d.valor_real || d.valor_previsto)}</span>
                     </div>
                     {(d.parcelas > 1 || hasChildren) && (
                       <Badge variant="secondary" className="text-[10px]">{d.parcelas || children.length}x</Badge>
