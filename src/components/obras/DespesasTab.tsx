@@ -495,8 +495,7 @@ const DespesasTab = ({ obraId }: Props) => {
               <TableHead><SortableHeader label="Etapa" field="etapas.nome" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead><SortableHeader label="Fornecedor" field="fornecedores.nome" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead className="w-28"><SortableHeader label="Categoria" field="categoria" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
-              <TableHead className="w-32"><SortableHeader label="Previsto" field="valor_previsto" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
-              <TableHead className="w-32"><SortableHeader label="Real" field="valor_real" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
+              <TableHead className="w-32"><SortableHeader label="Valor" field="valor_real" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead className="w-28"><SortableHeader label="Vencimento" field="data_vencimento" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead className="w-20"><SortableHeader label="Parcelas" field="parcelas" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead className="w-20"><SortableHeader label="Pago" field="pago" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
