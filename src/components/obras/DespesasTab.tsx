@@ -667,8 +667,7 @@ const ExpandableRow = ({ d, children, canExpand, hasChildren, isExpanded, onTogg
           <TableCell className="text-sm">{c.etapas?.nome || "—"}</TableCell>
           <TableCell className="text-sm">{c.fornecedores?.nome || "—"}</TableCell>
           <TableCell></TableCell>
-          <TableCell className="text-sm whitespace-nowrap">R$ {fmt(c.valor_previsto)}</TableCell>
-          <TableCell className="text-sm whitespace-nowrap">R$ {fmt(c.valor_real)}</TableCell>
+          <TableCell className="text-sm whitespace-nowrap">R$ {fmt(c.valor_real || c.valor_previsto)}</TableCell>
           <TableCell className="text-sm whitespace-nowrap">{c.data_vencimento ? new Date(c.data_vencimento + "T12:00:00").toLocaleDateString("pt-BR") : "—"}</TableCell>
           <TableCell className="text-center text-sm font-mono">{c.parcela_numero || "—"}</TableCell>
           <TableCell>
