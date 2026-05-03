@@ -59,6 +59,7 @@ const DespesasTab = ({ obraId }: Props) => {
   const createFornecedor = useCreateFornecedor();
   const { toast } = useToast();
   const confirm = useConfirm();
+  const unsaved = useUnsavedChanges();
 
   const handleDeleteDespesa = async (d: any) => {
     if (await confirm({
