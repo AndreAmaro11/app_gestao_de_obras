@@ -195,14 +195,15 @@ const DespesasTab = ({ obraId }: Props) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const valor = Number(valorReal || valorPrev || 0);
     const payload = {
       obra_id: obraId, descricao,
       etapa_id: etapaId || null,
       subetapa_id: subetapaId && subetapaId !== "__none__" ? subetapaId : null,
       fornecedor_id: fornecedorId || null,
       categoria: categoria as any,
-      valor_previsto: Number(valorPrev),
-      valor_real: Number(valorReal || 0),
+      valor_previsto: valor,
+      valor_real: valor,
       data: data || new Date().toISOString().split("T")[0],
       condicao_pagamento: condicaoPagamento || null,
       data_vencimento: dataVencimento || null,
@@ -217,6 +218,7 @@ const DespesasTab = ({ obraId }: Props) => {
           toast({ title: `Despesa criada com ${parcelas} parcelas automáticas!` });
         }
       }
+      unsaved.reset();
       setShowDialog(false); resetForm();
     } catch (err: any) { toast({ title: "Erro", description: err.message, variant: "destructive" }); }
   };
