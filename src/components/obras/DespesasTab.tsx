@@ -639,10 +639,7 @@ const ExpandableRow = ({ d, children, canExpand, hasChildren, isExpanded, onTogg
         <TableCell>{d.etapas?.nome || "—"}</TableCell>
         <TableCell>{d.fornecedores?.nome || "—"}</TableCell>
         <TableCell><Badge variant="outline" className="text-xs whitespace-nowrap">{categoriaLabel[d.categoria]}</Badge></TableCell>
-        <TableCell className="whitespace-nowrap">R$ {fmt(d.valor_previsto)}</TableCell>
-        <TableCell className={`whitespace-nowrap ${d.valor_real > d.valor_previsto ? "text-destructive font-medium" : ""}`}>
-          {d.valor_real > 0 ? `R$ ${fmt(d.valor_real)}` : "—"}
-        </TableCell>
+        <TableCell className="whitespace-nowrap font-medium">R$ {fmt(d.valor_real || d.valor_previsto)}</TableCell>
         <TableCell className="whitespace-nowrap">{d.data_vencimento ? new Date(d.data_vencimento + "T12:00:00").toLocaleDateString("pt-BR") : "—"}</TableCell>
         <TableCell className="text-center font-mono">
           {canExpand ? <Badge variant="secondary" className="text-xs cursor-pointer" onClick={onToggleExpand}>{d.parcelas || children.length}x</Badge> : (d.parcelas || 1)}
