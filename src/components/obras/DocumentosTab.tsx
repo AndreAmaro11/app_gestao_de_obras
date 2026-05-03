@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
+import PagamentosAnexosSection from "./PagamentosAnexosSection";
 
 interface Props { obraId: string; }
 
@@ -484,6 +485,9 @@ const DocumentosTab = ({ obraId }: Props) => {
           <input ref={fileRef} type="file" multiple className="hidden" onChange={handleUpload} />
         </div>
       </div>
+
+      {/* Anexos de Pagamentos (somente leitura, agrupados por fornecedor) */}
+      {pastaAtual === null && <PagamentosAnexosSection obraId={obraId} />}
 
       {/* New folder inline */}
       {showNewFolder && (

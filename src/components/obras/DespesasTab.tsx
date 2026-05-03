@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { DataToolbar, SortableHeader, useSort, useSearch } from "@/components/DataToolbar";
 import { Textarea } from "@/components/ui/textarea";
 import { useConfirm } from "@/components/ConfirmDialog";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import MediaLightbox, { LightboxItem } from "@/components/MediaLightbox";
 
 
@@ -58,6 +59,7 @@ const DespesasTab = ({ obraId }: Props) => {
   const createFornecedor = useCreateFornecedor();
   const { toast } = useToast();
   const confirm = useConfirm();
+  const unsaved = useUnsavedChanges();
 
   const handleDeleteDespesa = async (d: any) => {
     if (await confirm({
@@ -107,6 +109,7 @@ const DespesasTab = ({ obraId }: Props) => {
     setCategoria("material"); setValorPrev(""); setValorReal(""); setData("");
     setCondicaoPagamento(""); setDataVencimento(""); setParcelas("1");
     setEditing(null);
+    unsaved.reset();
   };
 
   const openEdit = (d: any) => {
@@ -117,6 +120,14 @@ const DespesasTab = ({ obraId }: Props) => {
     setCondicaoPagamento(d.condicao_pagamento || "");
     setDataVencimento(d.data_vencimento || ""); setParcelas(String(d.parcelas || 1));
     setShowDialog(true);
+    unsaved.reset();
+  };
+
+  const tryCloseDialog = async () => {
+    if (await unsaved.confirmDiscard()) {
+      setShowDialog(false);
+      resetForm();
+    }
   };
 
   const toggleExpand = (id: string) => {
@@ -184,14 +195,15 @@ const DespesasTab = ({ obraId }: Props) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const valor = Number(valorReal || valorPrev || 0);
     const payload = {
       obra_id: obraId, descricao,
       etapa_id: etapaId || null,
       subetapa_id: subetapaId && subetapaId !== "__none__" ? subetapaId : null,
       fornecedor_id: fornecedorId || null,
       categoria: categoria as any,
-      valor_previsto: Number(valorPrev),
-      valor_real: Number(valorReal || 0),
+      valor_previsto: valor,
+      valor_real: valor,
       data: data || new Date().toISOString().split("T")[0],
       condicao_pagamento: condicaoPagamento || null,
       data_vencimento: dataVencimento || null,
@@ -206,6 +218,7 @@ const DespesasTab = ({ obraId }: Props) => {
           toast({ title: `Despesa criada com ${parcelas} parcelas automáticas!` });
         }
       }
+      unsaved.reset();
       setShowDialog(false); resetForm();
     } catch (err: any) { toast({ title: "Erro", description: err.message, variant: "destructive" }); }
   };
@@ -307,28 +320,30 @@ const DespesasTab = ({ obraId }: Props) => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showDialog} onOpenChange={(v) => { setShowDialog(v); if (!v) resetForm(); }}>
-        <DialogContent className="max-w-lg max-h-[92vh] sm:max-h-[90vh] p-0 gap-0 flex flex-col">
+      <Dialog open={showDialog} onOpenChange={(v) => {
+        if (!v) { tryCloseDialog(); } else { setShowDialog(true); }
+      }}>
+        <DialogContent className="max-w-lg max-h-[92vh] sm:max-h-[90vh] p-0 gap-0 flex flex-col" onEscapeKeyDown={(e) => { e.preventDefault(); tryCloseDialog(); }} onPointerDownOutside={(e) => { if (unsaved.isDirty()) e.preventDefault(); }} onInteractOutside={(e) => { if (unsaved.isDirty()) e.preventDefault(); }}>
           <DialogHeader className="px-6 pt-6 pb-3 border-b shrink-0"><DialogTitle>{editing ? "Editar Despesa" : "Nova Despesa"}</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-            <div className="space-y-2"><Label>Descrição</Label><Input value={descricao} onChange={e => setDescricao(e.target.value)} required /></div>
+            <div className="space-y-2"><Label>Descrição</Label><Input value={descricao} onChange={e => { setDescricao(e.target.value); unsaved.markDirty(); }} required /></div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Etapa</Label>
-                <Select value={etapaId} onValueChange={(v) => { setEtapaId(v); setSubetapaId(""); }}>
+                <Select value={etapaId} onValueChange={(v) => { setEtapaId(v); setSubetapaId(""); unsaved.markDirty(); }}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>{etapas?.map(et => <SelectItem key={et.id} value={et.id}>{et.nome}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <SubetapaSelect etapaId={etapaId || undefined} value={subetapaId} onChange={setSubetapaId} />
+              <SubetapaSelect etapaId={etapaId || undefined} value={subetapaId} onChange={(v) => { setSubetapaId(v); unsaved.markDirty(); }} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Fornecedor</Label>
                 <div className="flex gap-2">
                   <div className="flex-1">
-                    <Select value={fornecedorId} onValueChange={setFornecedorId}>
+                    <Select value={fornecedorId} onValueChange={(v) => { setFornecedorId(v); unsaved.markDirty(); }}>
                       <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                       <SelectContent>{fornecedores?.map(f => <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}</SelectContent>
                     </Select>
@@ -340,7 +355,7 @@ const DespesasTab = ({ obraId }: Props) => {
               </div>
               <div className="space-y-2">
                 <Label>Categoria</Label>
-                <Select value={categoria} onValueChange={setCategoria}>
+                <Select value={categoria} onValueChange={(v) => { setCategoria(v); unsaved.markDirty(); }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="material">Material</SelectItem>
@@ -355,15 +370,14 @@ const DespesasTab = ({ obraId }: Props) => {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <div className="space-y-2"><Label>Valor Previsto</Label><Input type="number" step="0.01" value={valorPrev} onChange={e => setValorPrev(e.target.value)} required /></div>
-              <div className="space-y-2"><Label>Valor Real</Label><Input type="number" step="0.01" value={valorReal} onChange={e => setValorReal(e.target.value)} /></div>
-              <div className="space-y-2"><Label>Data</Label><Input type="date" value={data} onChange={e => setData(e.target.value)} /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>Valor (R$)</Label><Input type="number" step="0.01" value={valorReal} onChange={e => { setValorReal(e.target.value); setValorPrev(e.target.value); unsaved.markDirty(); }} required /></div>
+              <div className="space-y-2"><Label>Data</Label><Input type="date" value={data} onChange={e => { setData(e.target.value); unsaved.markDirty(); }} /></div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <div className="space-y-2"><Label>Condição Pgto</Label><Input value={condicaoPagamento} onChange={e => setCondicaoPagamento(e.target.value)} placeholder="Ex: 30/60/90" /></div>
-              <div className="space-y-2"><Label>Vencimento</Label><Input type="date" value={dataVencimento} onChange={e => setDataVencimento(e.target.value)} /></div>
-              <div className="space-y-2"><Label>Parcelas</Label><Input type="number" min="1" value={parcelas} onChange={e => setParcelas(e.target.value)} /></div>
+              <div className="space-y-2"><Label>Condição Pgto</Label><Input value={condicaoPagamento} onChange={e => { setCondicaoPagamento(e.target.value); unsaved.markDirty(); }} placeholder="Ex: 30/60/90" /></div>
+              <div className="space-y-2"><Label>Vencimento</Label><Input type="date" value={dataVencimento} onChange={e => { setDataVencimento(e.target.value); unsaved.markDirty(); }} /></div>
+              <div className="space-y-2"><Label>Parcelas</Label><Input type="number" min="1" value={parcelas} onChange={e => { setParcelas(e.target.value); unsaved.markDirty(); }} /></div>
             </div>
             {Number(parcelas) > 1 && dataVencimento && (
               <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
@@ -372,7 +386,7 @@ const DespesasTab = ({ obraId }: Props) => {
               </p>
             )}
             </div>
-            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-6 py-3 border-t bg-background shrink-0"><Button type="button" variant="outline" onClick={() => { setShowDialog(false); resetForm(); }}>Cancelar</Button><Button type="submit" disabled={createDespesa.isPending || updateDespesa.isPending}>{createDespesa.isPending || updateDespesa.isPending ? "Salvando..." : (editing ? "Salvar" : "Criar")}</Button></div>
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-6 py-3 border-t bg-background shrink-0"><Button type="button" variant="outline" onClick={tryCloseDialog}>Cancelar</Button><Button type="submit" disabled={createDespesa.isPending || updateDespesa.isPending}>{createDespesa.isPending || updateDespesa.isPending ? "Salvando..." : (editing ? "Salvar" : "Criar")}</Button></div>
           </form>
         </DialogContent>
       </Dialog>
@@ -418,7 +432,6 @@ const DespesasTab = ({ obraId }: Props) => {
             {sorted.map((d: any) => {
               const children = getChildren(d.id);
               const hasChildren = children.length > 0;
-              const overBudget = d.valor_real > d.valor_previsto;
               return (
                 <div key={d.id} className="bg-card border rounded-lg p-3 space-y-2">
                   <div className="flex items-start justify-between gap-2">
@@ -433,11 +446,8 @@ const DespesasTab = ({ obraId }: Props) => {
                   </div>
                   {d.fornecedores?.nome && <p className="text-xs text-muted-foreground">{d.fornecedores.nome}</p>}
                   <div className="flex items-center justify-between gap-2 pt-1 border-t">
-                    <div className="text-xs">
-                      <span className="text-muted-foreground">Prev:</span> <span className="font-mono">R$ {fmt(d.valor_previsto)}</span>
-                      {d.valor_real > 0 && (
-                        <> <span className="text-muted-foreground ml-2">Real:</span> <span className={`font-mono ${overBudget ? "text-destructive font-semibold" : ""}`}>R$ {fmt(d.valor_real)}</span></>
-                      )}
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">Valor:</span> <span className="font-mono font-semibold">R$ {fmt(d.valor_real || d.valor_previsto)}</span>
                     </div>
                     {(d.parcelas > 1 || hasChildren) && (
                       <Badge variant="secondary" className="text-[10px]">{d.parcelas || children.length}x</Badge>
@@ -484,8 +494,7 @@ const DespesasTab = ({ obraId }: Props) => {
               <TableHead><SortableHeader label="Etapa" field="etapas.nome" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead><SortableHeader label="Fornecedor" field="fornecedores.nome" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead className="w-28"><SortableHeader label="Categoria" field="categoria" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
-              <TableHead className="w-32"><SortableHeader label="Previsto" field="valor_previsto" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
-              <TableHead className="w-32"><SortableHeader label="Real" field="valor_real" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
+              <TableHead className="w-32"><SortableHeader label="Valor" field="valor_real" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead className="w-28"><SortableHeader label="Vencimento" field="data_vencimento" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead className="w-20"><SortableHeader label="Parcelas" field="parcelas" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
               <TableHead className="w-20"><SortableHeader label="Pago" field="pago" currentField={sortField} currentDir={sortDir} onSort={toggleSort} /></TableHead>
@@ -494,9 +503,9 @@ const DespesasTab = ({ obraId }: Props) => {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
             ) : !sorted.length ? (
-              <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-8">{search ? "Nenhum resultado" : "Nenhuma despesa"}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">{search ? "Nenhum resultado" : "Nenhuma despesa"}</TableCell></TableRow>
             ) : agrupado ? (
               <>
                 {groups.map(group => {
@@ -514,8 +523,7 @@ const DespesasTab = ({ obraId }: Props) => {
                           {isCollapsed ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                         </TableCell>
                         <TableCell colSpan={5} className="py-2 font-semibold">{group.label}</TableCell>
-                        <TableCell className="py-2 font-semibold whitespace-nowrap">R$ {fmt(group.totalPrev)}</TableCell>
-                        <TableCell className="py-2 font-semibold whitespace-nowrap">R$ {fmt(group.totalReal)}</TableCell>
+                        <TableCell className="py-2 font-semibold whitespace-nowrap">R$ {fmt(group.totalReal || group.totalPrev)}</TableCell>
                         <TableCell className="py-2" colSpan={2}>
                           <Badge variant="secondary" className="text-xs">{totalPagas}/{group.items.length} pagas</Badge>
                         </TableCell>
@@ -550,8 +558,7 @@ const DespesasTab = ({ obraId }: Props) => {
                 <TableRow className="bg-muted/30 font-semibold">
                   <TableCell />
                   <TableCell colSpan={5} className="text-right">Total Geral</TableCell>
-                  <TableCell className="whitespace-nowrap">R$ {fmt(totalPrevisto)}</TableCell>
-                  <TableCell className="whitespace-nowrap">R$ {fmt(totalReal)}</TableCell>
+                  <TableCell className="whitespace-nowrap">R$ {fmt(totalReal || totalPrevisto)}</TableCell>
                   <TableCell colSpan={4} />
                 </TableRow>
               </>
@@ -582,8 +589,7 @@ const DespesasTab = ({ obraId }: Props) => {
                 <TableRow className="bg-muted/30 font-semibold">
                   <TableCell />
                   <TableCell colSpan={5} className="text-right">Total</TableCell>
-                  <TableCell className="whitespace-nowrap">R$ {fmt(totalPrevisto)}</TableCell>
-                  <TableCell className="whitespace-nowrap">R$ {fmt(totalReal)}</TableCell>
+                  <TableCell className="whitespace-nowrap">R$ {fmt(totalReal || totalPrevisto)}</TableCell>
                   <TableCell colSpan={4} />
                 </TableRow>
               </>
@@ -632,10 +638,7 @@ const ExpandableRow = ({ d, children, canExpand, hasChildren, isExpanded, onTogg
         <TableCell>{d.etapas?.nome || "—"}</TableCell>
         <TableCell>{d.fornecedores?.nome || "—"}</TableCell>
         <TableCell><Badge variant="outline" className="text-xs whitespace-nowrap">{categoriaLabel[d.categoria]}</Badge></TableCell>
-        <TableCell className="whitespace-nowrap">R$ {fmt(d.valor_previsto)}</TableCell>
-        <TableCell className={`whitespace-nowrap ${d.valor_real > d.valor_previsto ? "text-destructive font-medium" : ""}`}>
-          {d.valor_real > 0 ? `R$ ${fmt(d.valor_real)}` : "—"}
-        </TableCell>
+        <TableCell className="whitespace-nowrap font-medium">R$ {fmt(d.valor_real || d.valor_previsto)}</TableCell>
         <TableCell className="whitespace-nowrap">{d.data_vencimento ? new Date(d.data_vencimento + "T12:00:00").toLocaleDateString("pt-BR") : "—"}</TableCell>
         <TableCell className="text-center font-mono">
           {canExpand ? <Badge variant="secondary" className="text-xs cursor-pointer" onClick={onToggleExpand}>{d.parcelas || children.length}x</Badge> : (d.parcelas || 1)}
@@ -663,8 +666,7 @@ const ExpandableRow = ({ d, children, canExpand, hasChildren, isExpanded, onTogg
           <TableCell className="text-sm">{c.etapas?.nome || "—"}</TableCell>
           <TableCell className="text-sm">{c.fornecedores?.nome || "—"}</TableCell>
           <TableCell></TableCell>
-          <TableCell className="text-sm whitespace-nowrap">R$ {fmt(c.valor_previsto)}</TableCell>
-          <TableCell className="text-sm whitespace-nowrap">R$ {fmt(c.valor_real)}</TableCell>
+          <TableCell className="text-sm whitespace-nowrap">R$ {fmt(c.valor_real || c.valor_previsto)}</TableCell>
           <TableCell className="text-sm whitespace-nowrap">{c.data_vencimento ? new Date(c.data_vencimento + "T12:00:00").toLocaleDateString("pt-BR") : "—"}</TableCell>
           <TableCell className="text-center text-sm font-mono">{c.parcela_numero || "—"}</TableCell>
           <TableCell>
