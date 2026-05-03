@@ -320,28 +320,30 @@ const DespesasTab = ({ obraId }: Props) => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showDialog} onOpenChange={(v) => { setShowDialog(v); if (!v) resetForm(); }}>
-        <DialogContent className="max-w-lg max-h-[92vh] sm:max-h-[90vh] p-0 gap-0 flex flex-col">
+      <Dialog open={showDialog} onOpenChange={(v) => {
+        if (!v) { tryCloseDialog(); } else { setShowDialog(true); }
+      }}>
+        <DialogContent className="max-w-lg max-h-[92vh] sm:max-h-[90vh] p-0 gap-0 flex flex-col" onEscapeKeyDown={(e) => { e.preventDefault(); tryCloseDialog(); }} onPointerDownOutside={(e) => { if (unsaved.isDirty()) e.preventDefault(); }} onInteractOutside={(e) => { if (unsaved.isDirty()) e.preventDefault(); }}>
           <DialogHeader className="px-6 pt-6 pb-3 border-b shrink-0"><DialogTitle>{editing ? "Editar Despesa" : "Nova Despesa"}</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-            <div className="space-y-2"><Label>Descrição</Label><Input value={descricao} onChange={e => setDescricao(e.target.value)} required /></div>
+            <div className="space-y-2"><Label>Descrição</Label><Input value={descricao} onChange={e => { setDescricao(e.target.value); unsaved.markDirty(); }} required /></div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Etapa</Label>
-                <Select value={etapaId} onValueChange={(v) => { setEtapaId(v); setSubetapaId(""); }}>
+                <Select value={etapaId} onValueChange={(v) => { setEtapaId(v); setSubetapaId(""); unsaved.markDirty(); }}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>{etapas?.map(et => <SelectItem key={et.id} value={et.id}>{et.nome}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <SubetapaSelect etapaId={etapaId || undefined} value={subetapaId} onChange={setSubetapaId} />
+              <SubetapaSelect etapaId={etapaId || undefined} value={subetapaId} onChange={(v) => { setSubetapaId(v); unsaved.markDirty(); }} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Fornecedor</Label>
                 <div className="flex gap-2">
                   <div className="flex-1">
-                    <Select value={fornecedorId} onValueChange={setFornecedorId}>
+                    <Select value={fornecedorId} onValueChange={(v) => { setFornecedorId(v); unsaved.markDirty(); }}>
                       <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                       <SelectContent>{fornecedores?.map(f => <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}</SelectContent>
                     </Select>
@@ -353,7 +355,7 @@ const DespesasTab = ({ obraId }: Props) => {
               </div>
               <div className="space-y-2">
                 <Label>Categoria</Label>
-                <Select value={categoria} onValueChange={setCategoria}>
+                <Select value={categoria} onValueChange={(v) => { setCategoria(v); unsaved.markDirty(); }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="material">Material</SelectItem>
@@ -368,15 +370,14 @@ const DespesasTab = ({ obraId }: Props) => {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <div className="space-y-2"><Label>Valor Previsto</Label><Input type="number" step="0.01" value={valorPrev} onChange={e => setValorPrev(e.target.value)} required /></div>
-              <div className="space-y-2"><Label>Valor Real</Label><Input type="number" step="0.01" value={valorReal} onChange={e => setValorReal(e.target.value)} /></div>
-              <div className="space-y-2"><Label>Data</Label><Input type="date" value={data} onChange={e => setData(e.target.value)} /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>Valor (R$)</Label><Input type="number" step="0.01" value={valorReal} onChange={e => { setValorReal(e.target.value); setValorPrev(e.target.value); unsaved.markDirty(); }} required /></div>
+              <div className="space-y-2"><Label>Data</Label><Input type="date" value={data} onChange={e => { setData(e.target.value); unsaved.markDirty(); }} /></div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <div className="space-y-2"><Label>Condição Pgto</Label><Input value={condicaoPagamento} onChange={e => setCondicaoPagamento(e.target.value)} placeholder="Ex: 30/60/90" /></div>
-              <div className="space-y-2"><Label>Vencimento</Label><Input type="date" value={dataVencimento} onChange={e => setDataVencimento(e.target.value)} /></div>
-              <div className="space-y-2"><Label>Parcelas</Label><Input type="number" min="1" value={parcelas} onChange={e => setParcelas(e.target.value)} /></div>
+              <div className="space-y-2"><Label>Condição Pgto</Label><Input value={condicaoPagamento} onChange={e => { setCondicaoPagamento(e.target.value); unsaved.markDirty(); }} placeholder="Ex: 30/60/90" /></div>
+              <div className="space-y-2"><Label>Vencimento</Label><Input type="date" value={dataVencimento} onChange={e => { setDataVencimento(e.target.value); unsaved.markDirty(); }} /></div>
+              <div className="space-y-2"><Label>Parcelas</Label><Input type="number" min="1" value={parcelas} onChange={e => { setParcelas(e.target.value); unsaved.markDirty(); }} /></div>
             </div>
             {Number(parcelas) > 1 && dataVencimento && (
               <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
