@@ -524,8 +524,7 @@ const DespesasTab = ({ obraId }: Props) => {
                           {isCollapsed ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                         </TableCell>
                         <TableCell colSpan={5} className="py-2 font-semibold">{group.label}</TableCell>
-                        <TableCell className="py-2 font-semibold whitespace-nowrap">R$ {fmt(group.totalPrev)}</TableCell>
-                        <TableCell className="py-2 font-semibold whitespace-nowrap">R$ {fmt(group.totalReal)}</TableCell>
+                        <TableCell className="py-2 font-semibold whitespace-nowrap">R$ {fmt(group.totalReal || group.totalPrev)}</TableCell>
                         <TableCell className="py-2" colSpan={2}>
                           <Badge variant="secondary" className="text-xs">{totalPagas}/{group.items.length} pagas</Badge>
                         </TableCell>
