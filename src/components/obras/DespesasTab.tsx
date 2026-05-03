@@ -386,7 +386,7 @@ const DespesasTab = ({ obraId }: Props) => {
               </p>
             )}
             </div>
-            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-6 py-3 border-t bg-background shrink-0"><Button type="button" variant="outline" onClick={() => { setShowDialog(false); resetForm(); }}>Cancelar</Button><Button type="submit" disabled={createDespesa.isPending || updateDespesa.isPending}>{createDespesa.isPending || updateDespesa.isPending ? "Salvando..." : (editing ? "Salvar" : "Criar")}</Button></div>
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-6 py-3 border-t bg-background shrink-0"><Button type="button" variant="outline" onClick={tryCloseDialog}>Cancelar</Button><Button type="submit" disabled={createDespesa.isPending || updateDespesa.isPending}>{createDespesa.isPending || updateDespesa.isPending ? "Salvando..." : (editing ? "Salvar" : "Criar")}</Button></div>
           </form>
         </DialogContent>
       </Dialog>
