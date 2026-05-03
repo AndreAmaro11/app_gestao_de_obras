@@ -486,6 +486,9 @@ const DocumentosTab = ({ obraId }: Props) => {
         </div>
       </div>
 
+      {/* Anexos de Pagamentos (somente leitura, agrupados por fornecedor) */}
+      {pastaAtual === null && <PagamentosAnexosSection obraId={obraId} />}
+
       {/* New folder inline */}
       {showNewFolder && (
         <div className="flex items-center gap-2 animate-slide-up">
