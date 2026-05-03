@@ -432,7 +432,6 @@ const DespesasTab = ({ obraId }: Props) => {
             {sorted.map((d: any) => {
               const children = getChildren(d.id);
               const hasChildren = children.length > 0;
-              const overBudget = d.valor_real > d.valor_previsto;
               return (
                 <div key={d.id} className="bg-card border rounded-lg p-3 space-y-2">
                   <div className="flex items-start justify-between gap-2">
