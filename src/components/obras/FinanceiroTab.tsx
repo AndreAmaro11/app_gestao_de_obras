@@ -418,11 +418,12 @@ const FinanceiroTab = ({ obraId }: Props) => {
           </CollapsibleTrigger>
           {fluxoCaixa.length > 0 && (
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {
-              const wsData = [["Vencimento", "Descrição", "Fornecedor", "Categoria", "Valor", "Parcela", "Pago"]];
+              const wsData = [["Vencimento", "Descrição", "Etapa", "Fornecedor", "Categoria", "Valor", "Parcela", "Pago"]];
               fluxoCaixa.forEach((d: any) => {
                 wsData.push([
                   new Date(d.data_vencimento + "T12:00:00").toLocaleDateString("pt-BR"),
                   d.descricao,
+                  d.etapa_id ? (etapaMap.get(d.etapa_id) || "—") : "—",
                   d.fornecedores?.nome || "",
                   categoriaLabel[d.categoria] || d.categoria,
                   d.valor_real || d.valor_previsto,
@@ -430,9 +431,9 @@ const FinanceiroTab = ({ obraId }: Props) => {
                   d.pago ? "Sim" : "Não",
                 ]);
               });
-              wsData.push(["Total", "", "", "", fluxoCaixa.reduce((s: number, d: any) => s + (d.valor_real || d.valor_previsto), 0), "", ""]);
+              wsData.push(["Total", "", "", "", "", fluxoCaixa.reduce((s: number, d: any) => s + (d.valor_real || d.valor_previsto), 0), "", ""]);
               const ws = XLSX.utils.aoa_to_sheet(wsData);
-              ws["!cols"] = [{ wch: 12 }, { wch: 30 }, { wch: 20 }, { wch: 14 }, { wch: 14 }, { wch: 8 }, { wch: 6 }];
+              ws["!cols"] = [{ wch: 12 }, { wch: 30 }, { wch: 20 }, { wch: 20 }, { wch: 14 }, { wch: 14 }, { wch: 8 }, { wch: 6 }];
               const wb = XLSX.utils.book_new();
               XLSX.utils.book_append_sheet(wb, ws, "Fluxo de Caixa");
               XLSX.writeFile(wb, "fluxo_de_caixa.xlsx");
