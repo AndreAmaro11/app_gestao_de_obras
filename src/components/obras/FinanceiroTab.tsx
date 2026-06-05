@@ -449,6 +449,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
                 <TableRow>
                   <TableHead className="w-28">Vencimento</TableHead>
                   <TableHead>Descrição</TableHead>
+                  <TableHead>Etapa</TableHead>
                   <TableHead>Fornecedor</TableHead>
                   <TableHead className="w-24">Categoria</TableHead>
                   <TableHead className="w-28">Valor</TableHead>
