@@ -478,9 +478,9 @@ const FinanceiroTab = ({ obraId }: Props) => {
               {fluxoCaixa.length > 0 && (
                 <TableFooter>
                   <TableRow className="font-semibold">
-                    <TableCell colSpan={4}>Total</TableCell>
+                    <TableCell colSpan={5}>Total</TableCell>
                     <TableCell className="whitespace-nowrap">{fmt(fluxoCaixa.reduce((s: number, d: any) => s + (d.valor_real || d.valor_previsto), 0))}</TableCell>
-                    <TableCell colSpan={2} />
+                    <TableCell colSpan={3} />
                   </TableRow>
                 </TableFooter>
               )}
