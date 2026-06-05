@@ -418,11 +418,12 @@ const FinanceiroTab = ({ obraId }: Props) => {
           </CollapsibleTrigger>
           {fluxoCaixa.length > 0 && (
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {
-              const wsData = [["Vencimento", "Descrição", "Fornecedor", "Categoria", "Valor", "Parcela", "Pago"]];
+              const wsData = [["Vencimento", "Descrição", "Etapa", "Fornecedor", "Categoria", "Valor", "Parcela", "Pago"]];
               fluxoCaixa.forEach((d: any) => {
                 wsData.push([
                   new Date(d.data_vencimento + "T12:00:00").toLocaleDateString("pt-BR"),
                   d.descricao,
+                  d.etapa_id ? (etapaMap.get(d.etapa_id) || "—") : "—",
                   d.fornecedores?.nome || "",
                   categoriaLabel[d.categoria] || d.categoria,
                   d.valor_real || d.valor_previsto,
@@ -430,9 +431,9 @@ const FinanceiroTab = ({ obraId }: Props) => {
                   d.pago ? "Sim" : "Não",
                 ]);
               });
-              wsData.push(["Total", "", "", "", fluxoCaixa.reduce((s: number, d: any) => s + (d.valor_real || d.valor_previsto), 0), "", ""]);
+              wsData.push(["Total", "", "", "", "", fluxoCaixa.reduce((s: number, d: any) => s + (d.valor_real || d.valor_previsto), 0), "", ""]);
               const ws = XLSX.utils.aoa_to_sheet(wsData);
-              ws["!cols"] = [{ wch: 12 }, { wch: 30 }, { wch: 20 }, { wch: 14 }, { wch: 14 }, { wch: 8 }, { wch: 6 }];
+              ws["!cols"] = [{ wch: 12 }, { wch: 30 }, { wch: 20 }, { wch: 20 }, { wch: 14 }, { wch: 14 }, { wch: 8 }, { wch: 6 }];
               const wb = XLSX.utils.book_new();
               XLSX.utils.book_append_sheet(wb, ws, "Fluxo de Caixa");
               XLSX.writeFile(wb, "fluxo_de_caixa.xlsx");
@@ -448,6 +449,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
                 <TableRow>
                   <TableHead className="w-28">Vencimento</TableHead>
                   <TableHead>Descrição</TableHead>
+                  <TableHead>Etapa</TableHead>
                   <TableHead>Fornecedor</TableHead>
                   <TableHead className="w-24">Categoria</TableHead>
                   <TableHead className="w-28">Valor</TableHead>
@@ -457,11 +459,12 @@ const FinanceiroTab = ({ obraId }: Props) => {
               </TableHeader>
               <TableBody>
                 {fluxoCaixa.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhuma despesa com vencimento</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhuma despesa com vencimento</TableCell></TableRow>
                 ) : fluxoCaixa.map((d: any) => (
                   <TableRow key={d.id}>
                     <TableCell className="whitespace-nowrap">{new Date(d.data_vencimento + "T12:00:00").toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell className="font-medium">{d.descricao}</TableCell>
+                    <TableCell>{d.etapa_id ? (etapaMap.get(d.etapa_id) || "—") : "—"}</TableCell>
                     <TableCell>{d.fornecedores?.nome || "—"}</TableCell>
                     <TableCell><Badge variant="outline" className="text-xs whitespace-nowrap">{categoriaLabel[d.categoria] || d.categoria}</Badge></TableCell>
                     <TableCell className="whitespace-nowrap">{fmt(d.valor_real || d.valor_previsto)}</TableCell>
@@ -475,9 +478,9 @@ const FinanceiroTab = ({ obraId }: Props) => {
               {fluxoCaixa.length > 0 && (
                 <TableFooter>
                   <TableRow className="font-semibold">
-                    <TableCell colSpan={4}>Total</TableCell>
+                    <TableCell colSpan={5}>Total</TableCell>
                     <TableCell className="whitespace-nowrap">{fmt(fluxoCaixa.reduce((s: number, d: any) => s + (d.valor_real || d.valor_previsto), 0))}</TableCell>
-                    <TableCell colSpan={2} />
+                    <TableCell colSpan={3} />
                   </TableRow>
                 </TableFooter>
               )}
