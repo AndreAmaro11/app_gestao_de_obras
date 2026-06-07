@@ -76,7 +76,23 @@ const FinanceiroTab = ({ obraId }: Props) => {
     }
   });
 
-  const allFluxoItems = [...singleDespesasWithVenc, ...childDespesas.filter((d: any) => d.data_vencimento), ...virtualParcelas]
+  const parentMap = new Map<string, any>();
+  parentDespesas.forEach((d: any) => parentMap.set(d.id, d));
+  const childDespesasWithEtapa = childDespesas
+    .filter((d: any) => d.data_vencimento)
+    .map((d: any) => {
+      if (d.etapa_id) return d;
+      const parent = d.despesa_pai_id ? parentMap.get(d.despesa_pai_id) : null;
+      if (!parent) return d;
+      return {
+        ...d,
+        etapa_id: d.etapa_id ?? parent.etapa_id ?? null,
+        subetapa_id: d.subetapa_id ?? parent.subetapa_id ?? null,
+        categoria: d.categoria ?? parent.categoria,
+        fornecedor_id: d.fornecedor_id ?? parent.fornecedor_id,
+      };
+    });
+  const allFluxoItems = [...singleDespesasWithVenc, ...childDespesasWithEtapa, ...virtualParcelas]
     .sort((a: any, b: any) => a.data_vencimento.localeCompare(b.data_vencimento));
 
   // Filter helper
