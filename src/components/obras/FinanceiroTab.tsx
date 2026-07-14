@@ -588,33 +588,33 @@ const FinanceiroTab = ({ obraId }: Props) => {
                   </Button>
                 </div>
                 <div className="bg-card rounded-md border overflow-x-auto">
-                  <Table>
+                  <Table className="table-fixed w-full">
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-28">Mês</TableHead>
-                        <TableHead className="w-32">Entradas</TableHead>
-                        <TableHead className="w-32">Saídas</TableHead>
-                        <TableHead className="w-32">Saldo Mensal</TableHead>
-                        <TableHead className="w-32">Saldo Acumulado</TableHead>
+                        <TableHead className="w-[18%]">Mês</TableHead>
+                        <TableHead className="w-[20%]">Entradas</TableHead>
+                        <TableHead className="w-[20%]">Saídas</TableHead>
+                        <TableHead className="w-[20%]">Saldo Mensal</TableHead>
+                        <TableHead className="w-[22%]">Saldo Acumulado</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {fluxoRows.map(row => (
                         <TableRow key={row.mes}>
-                          <TableCell className="whitespace-nowrap font-medium">{formatMonth(row.mes)}</TableCell>
-                          <TableCell className="font-mono whitespace-nowrap text-success">{fmt(row.entradas)}</TableCell>
-                          <TableCell className="font-mono whitespace-nowrap text-destructive">{fmt(row.saidas)}</TableCell>
-                          <TableCell className={`font-mono whitespace-nowrap ${row.saldoMensal >= 0 ? "text-success" : "text-destructive"}`}>{fmt(row.saldoMensal)}</TableCell>
-                          <TableCell className={`font-mono whitespace-nowrap font-semibold ${row.acumulado >= 0 ? "text-success" : "text-destructive"}`}>{fmt(row.acumulado)}</TableCell>
+                          <TableCell className="whitespace-nowrap font-medium text-xs sm:text-sm">{formatMonth(row.mes)}</TableCell>
+                          <TableCell className="font-mono whitespace-nowrap text-success text-xs sm:text-sm">{fmt(row.entradas)}</TableCell>
+                          <TableCell className="font-mono whitespace-nowrap text-destructive text-xs sm:text-sm">{fmt(row.saidas)}</TableCell>
+                          <TableCell className={`font-mono whitespace-nowrap text-xs sm:text-sm ${row.saldoMensal >= 0 ? "text-success" : "text-destructive"}`}>{fmt(row.saldoMensal)}</TableCell>
+                          <TableCell className={`font-mono whitespace-nowrap font-semibold text-xs sm:text-sm ${row.acumulado >= 0 ? "text-success" : "text-destructive"}`}>{fmt(row.acumulado)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                     <TableFooter>
                       <TableRow className="font-semibold">
-                        <TableCell>Total</TableCell>
-                        <TableCell className="font-mono whitespace-nowrap text-success">{fmt(totalEntradas)}</TableCell>
-                        <TableCell className="font-mono whitespace-nowrap text-destructive">{fmt(totalSaidas)}</TableCell>
-                        <TableCell className={`font-mono whitespace-nowrap ${totalEntradas - totalSaidas >= 0 ? "text-success" : "text-destructive"}`}>{fmt(totalEntradas - totalSaidas)}</TableCell>
+                        <TableCell className="text-xs sm:text-sm">Total</TableCell>
+                        <TableCell className="font-mono whitespace-nowrap text-success text-xs sm:text-sm">{fmt(totalEntradas)}</TableCell>
+                        <TableCell className="font-mono whitespace-nowrap text-destructive text-xs sm:text-sm">{fmt(totalSaidas)}</TableCell>
+                        <TableCell className={`font-mono whitespace-nowrap text-xs sm:text-sm ${totalEntradas - totalSaidas >= 0 ? "text-success" : "text-destructive"}`}>{fmt(totalEntradas - totalSaidas)}</TableCell>
                         <TableCell />
                       </TableRow>
                     </TableFooter>
