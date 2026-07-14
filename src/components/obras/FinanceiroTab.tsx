@@ -564,6 +564,29 @@ const FinanceiroTab = ({ obraId }: Props) => {
 
 
             return (
+              <div className="space-y-2">
+                <div className="flex justify-end">
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {
+                    const wsData: any[][] = [["Mês", "Entradas", "Saídas", "Saldo Mensal", "Saldo Acumulado"]];
+                    fluxoRows.forEach(row => {
+                      wsData.push([
+                        formatMonth(row.mes),
+                        row.entradas,
+                        row.saidas,
+                        row.saldoMensal,
+                        row.acumulado,
+                      ]);
+                    });
+                    wsData.push(["Total", totalEntradas, totalSaidas, totalEntradas - totalSaidas, ""]);
+                    const ws = XLSX.utils.aoa_to_sheet(wsData);
+                    ws["!cols"] = [{ wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 16 }];
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "Entradas vs Saidas");
+                    XLSX.writeFile(wb, "fluxo_entradas_vs_saidas.xlsx");
+                  }}>
+                    <Download className="h-4 w-4" />Exportar Excel
+                  </Button>
+                </div>
                 <div className="bg-card rounded-md border overflow-x-auto">
                   <Table>
                     <TableHeader>
@@ -597,6 +620,7 @@ const FinanceiroTab = ({ obraId }: Props) => {
                     </TableFooter>
                   </Table>
                 </div>
+              </div>
             );
           })()}
         </CollapsibleContent>
