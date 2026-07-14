@@ -515,28 +515,6 @@ const FinanceiroTab = ({ obraId }: Props) => {
             </Button>
           </CollapsibleTrigger>
         </div>
-        {showEntradasSaidas && fluxoRows.length > 0 && (
-          <Button variant="outline" size="sm" className="gap-1.5 mt-2" onClick={() => {
-            const wsData = [["Mês", "Entradas", "Saídas", "Saldo Mensal", "Saldo Acumulado"]];
-            fluxoRows.forEach(row => {
-              wsData.push([
-                formatMonth(row.mes),
-                row.entradas,
-                row.saidas,
-                row.saldoMensal,
-                row.acumulado,
-              ]);
-            });
-            wsData.push(["Total", totalEntradas, totalSaidas, totalEntradas - totalSaidas, ""]);
-            const ws = XLSX.utils.aoa_to_sheet(wsData);
-            ws["!cols"] = [{ wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 16 }];
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Entradas vs Saidas");
-            XLSX.writeFile(wb, "fluxo_entradas_vs_saidas.xlsx");
-          }}>
-            <Download className="h-4 w-4" />Exportar Excel
-          </Button>
-        )}
         <CollapsibleContent className="mt-3">
           {(() => {
             // Expand receitas into monthly entries
